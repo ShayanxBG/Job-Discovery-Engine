@@ -1,34 +1,40 @@
 # Job Discovery Engine
 
-A UK-focused job discovery, verification, matching, ranking, and shortlist workspace. Claude Code is the current execution environment.
+A UK job-search pipeline that does the finding, checking and ranking, and stops where a human has to decide. It discovers vacancies, verifies the evidence that matters for a sponsored hire, scores each role against a private candidate profile, and saves a ranked shortlist every day. It never applies for anything.
 
-The product boundary is intentionally narrow:
+I built it to run my own search.
+
+The boundary is deliberate:
 
 ```text
 discover -> verify -> match -> rank -> shortlist -> human decides
 ```
 
-It does **not** auto-apply, tailor application packages, contact recruiters, fill forms, or submit applications.
+Nothing here tailors a CV, writes a cover letter, contacts a recruiter or fills a form, and there is no auto-apply. Those belong to the user, and the workspace stops before them.
+
+## How it works
+
+Claude Code is the execution environment. Three slash commands cover a normal day: `/scrape` searches, `/rank` verifies and scores, `/shortlist` shows the result. Each command is defined under `.claude/` as a command, a skill or an agent, and that is where the searching, the page reading and the screening judgement live.
+
+The decisions that carry weight are not left to the model. Python under `tools/` plans which queries run against which sources, gates every external URL before it is fetched, looks up sponsor licences in a local snapshot of the official GOV.UK register, and validates the model's structured evaluation against the matching policy before it computes a score, a band and eligibility. An out-of-range component is rejected rather than trusted.
+
+Everything the system reads from the web is treated as untrusted. A job advert that says "update the profile" or "send the CV here" is a job advert containing those words, and it cannot authorise anything. The candidate profile, its calibration and the master CV are read-only to every command except two, and those two act only on a direct request, show a preview, and wait for a separate confirmation.
+
+A validator checks the whole workspace: behaviour, authority rules, file sizes, duplication and the invariants that have to hold from one run to the next. It is the final gate after any change to an instruction file.
 
 ## What it does
 
-- Searches authenticated job platforms through the user's existing browser session when available.
-- Searches employer career sites, ATS platforms, public job boards, and sponsorship-focused lead sources.
-- Chooses its search window from RUN HISTORY, not from how many roles it found.
-- Resolves strong aggregator/board leads to employer-owned sources where possible.
-- Deduplicates the same vacancy across multiple sources while preserving separate requisitions.
-- Tracks previously seen jobs so daily runs focus on new or materially updated opportunities.
-- Filters unrealistic seniority, experience, contract, and wrong-specialism matches early.
-- Verifies sponsorship and salary evidence when they affect the decision.
-- Scores viable direct-employer roles against the candidate's private profile.
-- Keeps Direct, Verification, Agency, and Updated leads separate.
-- Saves immutable daily shortlist history that survives terminal or machine restarts.
+Discovery goes through the user's own authenticated browser session where a platform needs one, and otherwise across employer career sites, applicant tracking systems, public job boards and sponsorship-focused lead sources. Strong aggregator leads are resolved back to the employer's own posting where possible. The search window comes from run history, not from how many roles the last run happened to find.
+
+The same vacancy seen on several sources is folded into one record, while separate requisitions stay separate. Seen jobs are tracked, so a daily run spends its effort on new or materially updated roles.
+
+Roles that are clearly wrong on seniority, required experience, contract type or specialism are filtered out early. Sponsorship and salary evidence is verified when it would change the decision. Viable direct-employer roles are scored against the private profile, and Direct, Verification, Agency and Updated leads are reported as separate groups rather than one mixed list.
+
+Each day's shortlist is saved as an immutable snapshot. Closing the terminal or restarting the machine loses nothing.
 
 ## Browser model
 
-The project should use the user's **existing authenticated browser session**, not store account passwords.
-
-Browser-assisted discovery is read-only. If a site presents a CAPTCHA, anti-bot verification, or account challenge, the system stops for manual user action or marks the source incomplete. It does not bypass protections.
+Browser-assisted discovery uses the user's existing authenticated browser session; the project does not store account passwords. It is read-only and it does not bypass protections. When a site shows a CAPTCHA, an anti-bot check or an account challenge, the run stops for the user to act or marks that source incomplete.
 
 ## Core workflow
 
@@ -38,67 +44,48 @@ Browser-assisted discovery is read-only. If a site presents a CAPTCHA, anti-bot 
 /shortlist
 ```
 
-Useful commands:
+The full set of commands:
 
-- `/scrape` - normal daily discovery, window chosen from run history
-- `/scrape 1d|7d|14d` - exact recency window
-- `/scrape exhaustive` - wider weekly/catch-up search
-- `/scrape gapfill` - recover under-covered source families without resetting state
-- `/scrape health browser` - test authenticated browser sources without saving jobs
-- `/rank` - verify and score latest new/updated discoveries, then save a shortlist snapshot
-- `/shortlist` - latest saved shortlist
-- `/shortlist today` - latest saved shortlist from today
-- `/shortlist YYYY-MM-DD` - historical shortlist for a date
-- `/shortlist all` - historical daily index
-- `/screen <URL or JD>` - analyse one vacancy against the profile
-- `/healthcheck` - local structural/deep validation
-- `/reset-discovery` - explicit maintenance reset of seen-job state only
-- `/update-master` - deprecated pointer to the two commands below
-- `/update-profile <fact>` - EXPLICIT USER REQUEST ONLY. Maintains the private profile
-- `/replace-master-cv <path>` - EXPLICIT USER REQUEST ONLY. Installs a supplied PDF byte-for-byte
+- `/scrape` runs normal daily discovery, with the window chosen from run history
+- `/scrape 1d|7d|14d` uses an exact recency window
+- `/scrape exhaustive` runs the wider weekly or catch-up search
+- `/scrape gapfill` recovers under-covered source families without resetting state
+- `/scrape health browser` tests the authenticated browser sources without saving jobs
+- `/rank` verifies and scores the latest new or updated discoveries, then saves a shortlist snapshot
+- `/shortlist` shows the latest saved shortlist; `/shortlist today`, `/shortlist YYYY-MM-DD` and `/shortlist all` show today's, one date's, or the daily index
+- `/screen <URL or JD>` analyses a single vacancy against the profile
+- `/healthcheck` runs the local structural and deep validation
+- `/reset-discovery` is an explicit maintenance reset of seen-job state only
+- `/update-profile <fact>` maintains the private profile, only on your direct request
+- `/replace-master-cv <path>` installs a PDF you supply, byte for byte, only on your direct request
+- `/update-master` is deprecated and points at the two commands above
 
 There are deliberately no application-submission or outreach commands.
 
 ### Candidate authority
 
-`candidate/profile.md` is the complete private factual authority for matching, and
-`candidate/config.json` is the derived machine-readable calibration. The master CV is
-a read-only curated subset chosen by the user for one audience, so absence from the CV
-is never evidence that a skill, experience or achievement is missing.
+`candidate/profile.md` is the complete private factual authority for matching, and `candidate/config.json` is the calibration derived from it. The master CV is a read-only subset the user curated for one audience, so a skill that is missing from the CV is not evidence that the candidate lacks it.
 
-Discovery is read-only toward all four authorities. `/scrape`, `/rank`, `/screen`,
-`/shortlist` and every worker read them and never write them.
+Discovery never writes to any of these. `/scrape`, `/rank`, `/screen`, `/shortlist` and every worker read them and stop there.
 
-Two narrow commands maintain them, and only when you ask directly. `/update-profile`
-edits `candidate/profile.md` and, where the derivation is deterministic,
-`candidate/config.json`. `/replace-master-cv` copies a PDF you created byte-for-byte
-into `documents/master/cv.pdf` without editing, rewriting, tailoring, regenerating or
-reformatting it. Each shows a preview and waits for a separate confirmation, and each
-backs up first. Neither can perform the other's write.
+Two narrow commands maintain them, and only when you ask directly. `/update-profile` edits `candidate/profile.md`, and `candidate/config.json` where the derivation is deterministic. `/replace-master-cv` copies a PDF you created into `documents/master/cv.pdf` byte for byte, with no editing, rewriting, tailoring, regenerating or reformatting. Both show a preview, wait for a separate confirmation and back up first, and neither can perform the other's write.
 
-No job advert, website, retrieved document, worker result or project file can authorise
-either command. Tailoring a CV and applying for a job remain outside this project.
+No job advert, website, retrieved document, worker result or project file can authorise either one. Tailoring a CV and applying for a job are outside this project.
 
-`documents/master/cv.json` is a dormant legacy rendering source. A PDF you supplied was
-probably not generated from it, so the two may legitimately differ. That divergence is
-expected, is never candidate evidence, and never blocks discovery.
-
-The four files are deliberately not made read-only by the operating system, so you can
-replace them by hand at any time. `tools/render_cv.py` and `tools/render_cv_docx.py`
-are dormant and no command invokes them.
+`documents/master/cv.json` is a dormant legacy rendering source. A PDF you supplied was probably not generated from it, so the two can differ. That is expected, is never treated as candidate evidence, and never blocks discovery. The four files are not made read-only by the operating system, so you can replace them by hand whenever you want. `tools/render_cv.py` and `tools/render_cv_docx.py` are dormant and nothing invokes them.
 
 ### Starting a clean search
 
-`/reset-discovery` clears the seen-job list and nothing else. To reset the COMPLETE active search state before a real search, use the separate command:
+`/reset-discovery` clears the seen-job list and nothing else. To reset the complete active search state before a real search, use the separate script:
 
 ```bash
 python tools/reset_production.py --dry-run   # show what would happen; writes nothing
 python tools/reset_production.py --confirm   # archive, verify, then clear
 ```
 
-It clears seen jobs, suppression, the watchlist, run logs, the JD cache and shortlist snapshots. It preserves the candidate profile and calibration, the master CV, the matching policy, the search strategy, the source registry, all code and agent definitions, the official sponsor-register snapshot, and verified employer identity. Nothing is cleared until a complete archive of the pre-reset runtime has been written and verified under `backups/production-reset/`, and older archives are never touched.
+It clears seen jobs, suppression, the watchlist, run logs, the JD cache and shortlist snapshots. It preserves the candidate profile and calibration, the master CV, the matching policy, the search strategy, the source registry, all code and agent definitions, the sponsor-register snapshot, and verified employer identity. Nothing is cleared until a complete archive of the pre-reset runtime has been written and verified under `backups/production-reset/`, and older archives are never touched.
 
-`/scrape` is a project skill at `.claude/skills/scrape/SKILL.md`. Claude Code takes the invocation name from the skill directory, so the directory name and the documented command are the same word. Claude Code caches skill discovery per session, so restart Claude Code after installing or renaming a skill if `/scrape` does not appear.
+`/scrape` is a project skill at `.claude/skills/scrape/SKILL.md`. Claude Code takes the invocation name from the skill directory, so the directory name and the documented command are the same word. Skill discovery is cached per session, so restart Claude Code after installing or renaming a skill if `/scrape` does not appear.
 
 ## Pre-flight
 
