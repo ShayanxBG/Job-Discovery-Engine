@@ -1,0 +1,2 @@
+# Byte-exact checkouts on every platform: PACKAGE_MANIFEST.txt records SHA-256 digests, so Git must never rewrite line endings.
+* -text

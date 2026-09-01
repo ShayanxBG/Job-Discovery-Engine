@@ -697,6 +697,12 @@ This is the final gate after any instruction change, and it is not replaceable b
 
 `python tools/preflight.py` is the lighter gate before a live run.
 
+### Validation on a fresh clone
+
+A fresh clone of this distribution reports **9 failing checks, and that is by design.** The private candidate authorities are deliberately not published, so the checks looking for `candidate/profile.md`, `candidate/cv-maintenance.md`, `documents/master/cv.pdf`, `documents/master/cv.json` and `job_scraper/seen_jobs.json` cannot pass, and the two discovery-state checks that read `seen_jobs.json` fail alongside them. Three further checks SKIP for the same reason.
+
+Copy the `.example` templates in `candidate/` to your own files and fill them in, and those failures resolve as the workspace gains the evidence they look for. A failure OUTSIDE that set is a real one.
+
 ## Privacy and GitHub
 
 This repository is a strictly LOCAL recovery checkpoint. It has no remote, and it must not gain one without a deliberate decision.

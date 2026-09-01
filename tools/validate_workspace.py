@@ -468,8 +468,10 @@ for phrase in legacy_workflow_phrases:
 # strictly local recovery checkpoint that deliberately tracks the candidate profile,
 # the derived config and the master CV, because a checkpoint excluding the exact files
 # the next phase edits protects nothing. That is safe only while the repository has no
-# remote, so the rule is now conditional on exactly that, and it fires again the moment
-# a remote appears. Paths that are pure runtime output stay unconditionally ignored.
+# remote. This PUBLISHED distribution ships none of them, so the rule here is
+# unconditional: every private authority must be gitignored, literally or through a
+# parent directory rule, and a remote is expected rather than forbidden. Paths that are
+# pure runtime output stay unconditionally ignored.
 gitignore=text(ROOT/'.gitignore')
 def _has_remote():
     try:
@@ -482,10 +484,25 @@ _ALWAYS_IGNORED=['job_scraper/shortlists/','job_scraper/runs/','job_scraper/cach
 _LOCAL_TRACKABLE=['candidate/profile.md','candidate/cv-maintenance.md','documents/master/','job_scraper/seen_jobs.json','job_scraper/suppression.json','job_scraper/employers.json','job_scraper/watchlist.json','job_scraper/sponsorship_evidence.json','candidate/config.json']
 for private in _ALWAYS_IGNORED:
     check(private in gitignore, f'runtime path is always gitignored: {private}')
-check(not _REMOTE_PRESENT, 'the repository has NO remote, so nothing can be published from it')
+def _gitignore_covers(path, ignore_text):
+    """True when .gitignore protects `path` literally or through a parent directory.
+
+    A substring test read a real directory rule as no rule at all: `job_scraper/`
+    protects job_scraper/seen_jobs.json, and calling that unprotected made the check
+    cry wolf on every published clone. Comments are not rules, and a path nothing
+    matches still FAILS, so the protection stays proven rather than assumed.
+    """
+    rules={line.strip() for line in ignore_text.splitlines()
+           if line.strip() and not line.strip().startswith('#')}
+    parts=path.rstrip('/').split('/')
+    for depth in range(1,len(parts)+1):
+        owned='/'.join(parts[:depth])
+        if owned in rules or owned+'/' in rules:
+            return True
+    return False
 for private in _LOCAL_TRACKABLE:
-    check((private in gitignore) or not _REMOTE_PRESENT,
-          f'private authority is either ignored or unpublishable: {private}')
+    check(_gitignore_covers(private,gitignore),
+          f'private authority is gitignored, literally or by a parent rule: {private}')
 check(_REMOTE_PRESENT or True, 'private candidate authorities may be tracked only in a strictly local checkpoint')
 check('candidate/profile.example.md' not in gitignore, 'candidate profile example remains publishable')
 # The source registry describes sources only and is deliberately publishable.
