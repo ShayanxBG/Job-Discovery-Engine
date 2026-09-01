@@ -735,3 +735,7 @@ python tools/package_manifest.py verify    # every path, digest and exclusion
 `verify` fails on a missing path, a changed digest, a duplicated entry, an unlisted package file, a private or ignored path that got in, and on the manifest naming itself. `--deep` runs it against the live workspace and against fixtures, so the exclusions are tested rather than described.
 
 This project is adapted from Mads Lorentzen's open-source `ai-job-search` project. See `UPSTREAM_NOTICE.md` and `UPSTREAM_LICENSE` for attribution and licence information.
+
+## Licence
+
+MIT. The full text is in `LICENSE`. This project is adapted from upstream work whose attribution and original MIT licence are preserved in `UPSTREAM_NOTICE.md` and `UPSTREAM_LICENSE`.
