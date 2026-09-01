@@ -2,7 +2,7 @@
 
 A UK job-search pipeline that does the finding, checking and ranking, and stops where a human has to decide. It discovers vacancies, verifies the evidence that matters for a sponsored hire, scores each role against a private candidate profile, and saves a ranked shortlist every day. It never applies for anything.
 
-I built it to run my own search.
+I built it to learn how to run LLM agents under deterministic guardrails, in a real domain with messy inputs.
 
 The boundary is deliberate:
 
