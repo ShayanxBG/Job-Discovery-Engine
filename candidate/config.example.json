@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "_comment": "EXAMPLE candidate matching configuration with fictional values. Copy to candidate/config.json (gitignored) or generate one with: python tools/candidate_config.py build. This file holds MATCHING CONSTRAINTS ONLY. It must never contain a real name, email, phone number, address, account details, or CV prose: the private evidence stays in candidate/profile.md, which remains the authority. A value that the profile does not clearly establish stays null, and null means unknown rather than false.",
+
+  "target_roles": [
+    "Python Developer",
+    "Backend Developer",
+    "Python Backend Developer"
+  ],
+  "adjacent_roles": [
+    "Software Engineer",
+    "Software Developer",
+    "Integration Engineer",
+    "API Engineer",
+    "Platform Engineer"
+  ],
+
+  "seniority": {
+    "target_level": "junior-to-mid",
+    "acceptable_levels": ["junior", "junior-to-mid", "mid"],
+    "excluded_levels": ["senior", "staff", "principal", "lead", "head", "director", "architect", "manager"],
+    "review_from_years": 3,
+    "hard_block_at_or_above_years": 4,
+    "_comment": "review_from_years is a stretch that costs points and stays visible for human review; it is never a blocker. hard_block_at_or_above_years is INCLUSIVE: a stated hard minimum EQUAL to it blocks, and anything below it does not. A preference such as '3 years preferred' or '4 years preferred' is never a hard minimum at all."
+  },
+
+  "skills": {
+    "primary_languages": ["Python"],
+    "frameworks": ["Django", "FastAPI"],
+    "backend_capabilities": ["REST API", "backend services", "integrations", "server-side"],
+    "databases": ["PostgreSQL"],
+    "secondary_skills": ["Docker", "Git", "CI/CD", "Pytest", "JavaScript"],
+    "_comment": "primary_languages drives the wrong_primary_language blocker. secondary_skills are supporting evidence and their absence from a vacancy is never a blocker."
+  },
+
+  "specialisms": {
+    "preferred": ["backend", "api", "integrations", "platform", "application engineering"],
+    "excluded": ["data science", "machine learning research", "quantitative research", "embedded", "game development", "frontend only", "technical support"],
+    "_comment": "excluded means the role's PRIMARY specialism. A backend role that touches data is fine; a data-science role that happens to use Python is not."
+  },
+
+  "employment": {
+    "acceptable_types": ["permanent", "full-time"],
+    "excluded_types": ["contract", "temporary", "apprenticeship", "internship", "day-rate", "outside-ir35"],
+    "_comment": "excluded_types names INDEPENDENT CONTRACTING and temporary agency work. A directly employed fixed-term role is deliberately absent: official sponsor guidance does not prohibit one, so it is scored conservatively and stays reviewable rather than being blocked."
+  },
+
+  "location": {
+    "market": "United Kingdom",
+    "preferred_locations": ["London", "Cambridge", "Oxford"],
+    "relocation_within_market": true,
+    "score_weight": 0,
+    "_comment": "score_weight MUST be 0. Location is display, tie-breaking and planning context only. Anywhere inside the market scores identically. Outside the market is a hard blocker, which is a different kind of fact from a lower score."
+  },
+
+  "sponsorship": {
+    "eventual_sponsorship_required": true,
+    "current_status_category": "time-limited-work-authorisation",
+    "licence_evidence_required": true,
+    "vacancy_specific_confirmation_required": true,
+    "_comment": "current_status_category is a CATEGORY, never a document number, a visa type tied to an individual, or an expiry date. Those stay in the private profile."
+  },
+
+  "salary": {
+    "hard_floor": null,
+    "currency": "GBP",
+    "_comment": "null means no configured hard floor, so salary_below_hard_floor can never fire. An unstated salary is unknown information and is never a blocker."
+  },
+
+  "working_pattern": {
+    "acceptable": ["remote", "hybrid", "on-site"],
+    "preferred": null
+  },
+
+  "constraints": {
+    "security_clearance_obtainable": false,
+    "_comment": "false means a role requiring clearance the candidate cannot obtain is a hard blocker. null would mean unknown, and unknown is not a blocker."
+  }
+}

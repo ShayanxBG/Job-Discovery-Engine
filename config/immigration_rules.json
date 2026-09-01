@@ -1,0 +1,146 @@
+{
+  "schema_version": 2,
+  "description": "The ONE authority for the UK immigration figures this workspace reasons about. Publishable: it holds official published rules and no candidate data. Every figure carries the official source it came from and the date it was checked, because these numbers change by statement of changes rather than by anything this project controls, and a stale one that keeps being applied silently is the failure mode that matters. Prose elsewhere must cite this file rather than restating a figure.",
+  "market": "United Kingdom",
+  "route": "Skilled Worker",
+  "observed_at": "2026-08-30",
+  "observed_from": "official GOV.UK pages only, fetched directly",
+  "review_interval_days": 30,
+  "review_after": "2026-09-29",
+  "staleness_notes": "review_after is exactly observed_at plus review_interval_days, and the validator refuses any other value so the boundary is never ambiguous. The reference is FRESH up to and including review_after and STALE from the day after. Thirty days rather than a quarter, because this is a live sponsorship-sensitive search and a salary threshold that moved three months ago would have been shaping recommendations the whole time. Stale is a REVIEW state, not an expiry: it warns, it never deletes a vacancy, and it never becomes a hard blocker. Sponsor-register freshness is a separate clock owned by tools/sponsor_register.py and is not this one.",
+
+  "published_values_are_authoritative": true,
+  "derivation_policy": {
+    "recalculating_a_published_annual_value_is_forbidden": true,
+    "forbidden_derived_annual_values": [38290, 36610],
+    "notes": "Appendix Skilled Occupations PUBLISHES the annual and hourly figure for each percentage column, so the percentage is explanatory context and never an instruction to multiply. An earlier version computed 70 per cent of the full going rate and produced GBP 38,290 and GBP 36,610; the Rules publish GBP 38,300 and GBP 36,600. Those two values are therefore refused by name at the validation boundary, and `salary_bands()` reads the published table rather than calculating anything, so a future edit cannot quietly reintroduce arithmetic in place of a legal figure."
+  },
+
+  "salary_thresholds": {
+    "currency": "GBP",
+    "general_standard": 41700,
+    "general_new_entrant_floor": 33400,
+    "new_entrant_going_rate_percentage": 70,
+    "percentage_is_explanatory_only": true,
+    "notes": "The applicable minimum is the HIGHER of the general threshold and the published occupation figure for the row that applies to the applicant. For an applicant meeting a reduced-rate condition that is the general floor of 33400 and the occupation's PUBLISHED 70 per cent annual rate. The percentage is recorded so a reader can see where the column comes from; it is never used to compute a threshold."
+  },
+
+  "going_rates": {
+    "2134": {
+      "title": "Programmers and software development professionals",
+      "published_rates": {
+        "100": {"annual": 54700, "hourly": 28.05},
+        "90": {"annual": 49200, "hourly": 25.23},
+        "80": {"annual": 43700, "hourly": 22.41},
+        "70": {"annual": 38300, "hourly": 19.64}
+      },
+      "transitional_lower_annual": 40000,
+      "transitional_lower_hourly": 20.51,
+      "transitional_notes": "The separate `lower` column on the going-rates publication is the transitional rate for an applicant whose first Certificate of Sponsorship predates 4 April 2024. It is NOT a reduced or new-entrant rate and must never be used as one."
+    },
+    "2139": {
+      "title": "Information technology professionals not elsewhere classified",
+      "published_rates": {
+        "100": {"annual": 52300, "hourly": 26.82},
+        "90": {"annual": 47100, "hourly": 24.15},
+        "80": {"annual": 41800, "hourly": 21.44},
+        "70": {"annual": 36600, "hourly": 18.77}
+      },
+      "transitional_lower_annual": 38700,
+      "transitional_lower_hourly": 19.85,
+      "transitional_notes": "Same transitional meaning for the `lower` column."
+    }
+  },
+
+  "occupation_code_policy": {
+    "employer_chooses_the_code": true,
+    "notes": "The occupation code is the SPONSOR's choice on the Certificate of Sponsorship and adverts almost never state it. A code must never be inferred from a job title alone, so a salary sitting between the published 2134 and 2139 figures is genuinely undecided rather than nearly rejected, and stays a verification need."
+  },
+
+  "new_entrant": {
+    "rule_reference": "Immigration Rules Appendix Skilled Worker, SW 12.2 and SW 12.3",
+    "qualifying_limbs_summary": [
+      "under 26 on the date of application",
+      "a postdoctoral position in a specified science or research occupation code",
+      "working towards a recognised qualification in a UK regulated profession",
+      "working towards full professional registration or chartered status",
+      "recent graduate with Student permission within the stated window",
+      "current or recent Graduate route permission"
+    ],
+    "combined_permission_condition_quote": "Granting the application must not mean the applicant's combined permission as a Skilled Worker, Graduate and/or Tier 2 Migrant would be more than 4 years in total, whether or not the permission is for a continuous period.",
+    "enumerated_routes": ["Skilled Worker", "Graduate", "Tier 2 Migrant"],
+    "student_permission_is_enumerated": false,
+    "notes": "SW 12.3 enumerates three routes and Student permission is not among them. The public overview page states the same condition loosely as `Your total stay in the UK cannot be more than 4 years`, which is a summary rather than the rule; the Rules wording governs. That difference is exactly why a specific applicant's remaining new-entrant headroom stays a decision-critical verification rather than something this project computes.",
+    "requires_case_specific_confirmation": [
+      "how much Skilled Worker, Graduate or Tier 2 permission an applicant has already used, which needs the actual grant dates",
+      "the resulting maximum Certificate of Sponsorship duration, which follows from those dates and not from the route alone",
+      "whether any reduced-rate limb other than the Graduate limb also applies",
+      "whether a statement of changes has moved any figure since observed_at"
+    ]
+  },
+
+  "employment_relationship": {
+    "third_party_supply_quote": "the hire of the worker to a third party who is not the sponsor to fill a position with that party, whether temporary or permanent; or contract work to undertake an ongoing routine role or to provide an ongoing routine service for a third party",
+    "third_party_supply_is_sponsorable": false,
+    "fixed_term_direct_employment_is_prohibited": false,
+    "maximum_cos_period_years": 5,
+    "notes": "The sponsor guidance refuses a Certificate of Sponsorship for supplying a worker to a third party or for ongoing routine contract work for a third party, which is the contractor and supplied-labour pattern. It states no prohibition on a directly employed FIXED-TERM role, and a Certificate of Sponsorship can normally be assigned for up to five years. So `fixed-term direct employment` and `independent contracting` are different facts and this workspace must not collapse them into one blocker. The bare word `contract` decides neither: it is ambiguous between the two and is treated as a verification need. This records what the official pages say and is not legal advice."
+  },
+
+  "sources": [
+    {
+      "id": "appendix_skilled_occupations",
+      "title": "Immigration Rules Appendix Skilled Occupations",
+      "url": "https://www.gov.uk/guidance/immigration-rules/immigration-rules-appendix-skilled-occupations",
+      "checked_on": "2026-08-30",
+      "page_last_updated": "2026-08-03",
+      "conclusion": "The Rules PUBLISH an annual and hourly figure for every percentage column, so no percentage is ever calculated here. SOC 2134 Programmers and software development professionals: 100 per cent GBP 54,700 (GBP 28.05), 90 per cent GBP 49,200 (GBP 25.23), 80 per cent GBP 43,700 (GBP 22.41), 70 per cent GBP 38,300 (GBP 19.64). SOC 2139 Information technology professionals not elsewhere classified: 100 per cent GBP 52,300 (GBP 26.82), 90 per cent GBP 47,100 (GBP 24.15), 80 per cent GBP 41,800 (GBP 21.44), 70 per cent GBP 36,600 (GBP 18.77). The table carries its own limitation: only the going rate column applies to Skilled Worker SETTLEMENT applications, and the 70, 80 and 90 per cent columns do not."
+    },
+    {
+      "id": "salary_reduced_rates",
+      "title": "Skilled Worker visa: when you can be paid less",
+      "url": "https://www.gov.uk/skilled-worker-visa/when-you-can-be-paid-less",
+      "checked_on": "2026-08-30",
+      "conclusion": "Standard requirement GBP 41,700 a year or the job's going rate, whichever is higher. A reduced rate of 70 per cent of the going rate, with a GBP 33,400 floor, applies to listed groups including a current or recent Graduate visa holder and an applicant under 26, subject to a four-year condition on combined permission."
+    },
+    {
+      "id": "appendix_skilled_worker",
+      "title": "Immigration Rules Appendix Skilled Worker (SW 12.2, SW 12.3)",
+      "url": "https://www.gov.uk/guidance/immigration-rules/immigration-rules-appendix-skilled-worker",
+      "checked_on": "2026-08-30",
+      "conclusion": "SW 12.3 limits COMBINED permission as a Skilled Worker, Graduate and/or Tier 2 Migrant to four years in total. Student permission is not enumerated in that condition, so the project must not state that it is. It does not follow that any particular applicant qualifies for any particular new-entrant period."
+    },
+    {
+      "id": "going_rates_publication",
+      "title": "Skilled Worker visa: going rates for eligible occupation codes",
+      "url": "https://www.gov.uk/government/publications/skilled-worker-visa-going-rates-for-eligible-occupations/skilled-worker-visa-going-rates-for-eligible-occupation-codes",
+      "checked_on": "2026-08-30",
+      "page_last_updated": "2025-07-22",
+      "conclusion": "Confirms the full going rates and carries the separate transitional lower column that applies only where the first Certificate of Sponsorship predates 4 April 2024. Appendix Skilled Occupations is the authority for the percentage columns."
+    },
+    {
+      "id": "sponsor_a_skilled_worker",
+      "title": "Workers and Temporary Workers: sponsor a skilled worker",
+      "url": "https://www.gov.uk/government/publications/sponsor-a-skilled-worker/workers-and-temporary-workers-sponsor-a-skilled-worker-accessible",
+      "checked_on": "2026-08-30",
+      "page_last_updated": "2026-04-08",
+      "conclusion": "No Certificate of Sponsorship where the worker is hired out to a third party or does ongoing routine contract work for one. No stated prohibition on directly employed fixed-term work, and a Certificate of Sponsorship is normally assignable for up to five years."
+    },
+    {
+      "id": "skilled_worker_your_job",
+      "title": "Skilled Worker visa: your job",
+      "url": "https://www.gov.uk/skilled-worker-visa/your-job",
+      "checked_on": "2026-08-30",
+      "conclusion": "The job must be with a UK employer approved by the Home Office and in an eligible occupation. The page states no employment-type prohibition of its own."
+    }
+  ],
+
+  "standing_limitations": [
+    "These figures are a dated reading of official pages, not legal advice, and immigration eligibility is time sensitive.",
+    "An applicant's own eligibility for any reduced rate, and the permissible Certificate of Sponsorship duration, depend on dates this project does not hold and should be confirmed by the employer or a qualified immigration professional.",
+    "An occupation going rate only applies once the sponsor has chosen that occupation code, which the advert almost never states.",
+    "The Rules state that only the going rate column applies to Skilled Worker SETTLEMENT applications, and that the 70, 80 and 90 per cent columns do not. The reduced figures here are about the sponsored role, not about settlement.",
+    "A salary at or above a published threshold makes sponsorship VIABLE on the salary limb alone. It never establishes that a vacancy will be sponsored.",
+    "Before any salary or immigration fact becomes application-critical, verify it fresh against the official pages rather than relying on this dated snapshot."
+  ]
+}

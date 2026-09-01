@@ -1,0 +1,360 @@
+{
+  "schema_version": 1,
+  "description": "Deterministic definition of HOW a vacancy is evaluated: the score components and their maxima, the bands, the agency model, the controlled hard-blocker and uncertainty vocabularies, and the evidence requirements. It describes evaluation METHOD only and contains no candidate values, so it is publishable. candidate/config.json holds the private thresholds that decide which of these rules actually apply to this candidate.",
+  "direct_model": {
+    "total_max": 100,
+    "components": {
+      "tech_fit": {
+        "max_score": 40,
+        "display_name": "Technical stack and day-to-day responsibilities",
+        "measures": "Whether the actual duties are the work this candidate does: primary language, backend frameworks, API and integration surface, datastores, production engineering and testing.",
+        "excludes": [
+          "the number of years an advert asks for, which belongs to seniority_experience",
+          "salary, contract and working pattern, which belong to employment_conditions",
+          "employer prestige or domain, which belongs to company_environment",
+          "sponsorship of any kind"
+        ]
+      },
+      "seniority_experience": {
+        "max_score": 15,
+        "display_name": "Seniority and commercial-experience fit",
+        "measures": "Whether the level is realistic: the stated experience requirement, whether it is a hard minimum or a preference, and whether the responsibilities describe the candidate's level rather than merely the title.",
+        "excludes": [
+          "which technologies are named, which belongs to tech_fit",
+          "salary, which belongs to employment_conditions"
+        ]
+      },
+      "sponsorship": {
+        "max_score": 25,
+        "display_name": "Skilled Worker sponsorship viability",
+        "measures": "Strength of sponsorship evidence on the existing ladder, from a vacancy-specific statement down to unknown.",
+        "excludes": [
+          "employer size, prestige or domain, which belongs to company_environment",
+          "salary, which belongs to employment_conditions even where an immigration floor is relevant"
+        ]
+      },
+      "employment_conditions": {
+        "max_score": 10,
+        "display_name": "Salary, contract and working-pattern feasibility",
+        "measures": "Employment type, salary where stated, and working pattern.",
+        "excludes": [
+          "WHERE the role is based, which carries no score at all",
+          "the technologies used, which belong to tech_fit"
+        ]
+      },
+      "company_environment": {
+        "max_score": 10,
+        "display_name": "Company environment and domain fit",
+        "measures": "Engineering environment and domain relevance: ownership of backend work, team shape, and a domain the candidate has real evidence in.",
+        "excludes": [
+          "sponsor licence status, which belongs to sponsorship",
+          "brand recognition on its own, which is not evidence of environment fit"
+        ]
+      }
+    },
+    "bands": [
+      {"id": "exceptional", "min_score": 90, "max_score": 100, "display_name": "Exceptional Match"},
+      {"id": "strong", "min_score": 80, "max_score": 89, "display_name": "Strong Match"},
+      {"id": "viable", "min_score": 70, "max_score": 79, "display_name": "Viable Match"},
+      {"id": "borderline_review", "min_score": 65, "max_score": 69, "display_name": "Borderline Review"},
+      {"id": "below_threshold", "min_score": 0, "max_score": 64, "display_name": "Below Threshold"}
+    ],
+    "notes": "These are structured decision-support scores, not predictions of interview or offer probability, and the boundaries are a PILOT calibration pending production outcomes. No outcome data stands behind 65, 70 or 80: they are conservative review boundaries chosen so that a false negative is visible rather than silent. `borderline_review` exists because a single hard line at 70 threw away every role in the band where this workspace is least sure of itself, and a score has never been a reason to stop looking at a vacancy. The component maxima sum to exactly 100 and the validator refuses any change that breaks that."
+  },
+  "band_policy": {
+    "calibration": "pilot",
+    "pending": "production outcome data",
+    "full_tailoring_from": 80,
+    "human_review_from": 65,
+    "human_review_to": 79,
+    "score_can_create_a_hard_blocker": false,
+    "score_can_create_a_suppression_record": false,
+    "notes": "A score is decision support and never a decision. Nothing in the 65 to 79 range may be hidden from the human during the pilot, a score alone can never create a hard blocker or a suppression record, and a role below 65 is deprioritised rather than deleted so later false-negative sampling still has something to sample. 80 remains the default full-tailoring threshold. None of these numbers claims to predict an interview."
+  },
+  "agency_model": {
+    "total_max": 75,
+    "components": {
+      "tech_fit": {"max_score": 40, "display_name": "Technical stack and day-to-day responsibilities"},
+      "seniority_experience": {"max_score": 15, "display_name": "Seniority and commercial-experience fit"},
+      "employment_conditions": {"max_score": 10, "display_name": "Salary, contract and working-pattern feasibility"},
+      "company_environment": {"max_score": 10, "display_name": "Company environment and domain fit"}
+    },
+    "excluded_components": ["sponsorship"],
+    "provisional": true,
+    "display_denominator": 75,
+    "notes": "An agency advert whose employing client is unknown cannot be scored on sponsorship, because there is no employer to check. The 25 sponsorship points are EXCLUDED rather than scored as zero, so the maximum is 75 and the result is provisional. An agency score must never be rendered against 100: 66/75 and 66/100 are different claims, and the second one is false."
+  },
+  "location_policy": {
+    "score_weight": 0,
+    "contributes_to_components": [],
+    "permitted_uses": ["display", "tie_breaking", "planning", "relocation_context"],
+    "market_country_codes": {
+      "united kingdom": ["GB", "UK"]
+    },
+    "market_country_notes": "ISO 3166-1 alpha-2 codes that count as INSIDE a named market, which is what makes `outside_market` provable rather than merely plausible. A country the map does not name cannot be judged either way, so the blocker refuses rather than guesses. This is a country vocabulary, not candidate data.",
+    "notes": "Location contributes ZERO score under every component. Two otherwise identical vacancies inside the accepted market score identically wherever they are. A preferred city is a tie-breaker between equal scores and a display fact, never points. Being OUTSIDE the accepted market is a hard blocker rather than a deduction, because it is a different kind of fact from a weaker fit."
+  },
+  "hard_blockers": {
+    "evidence_requirements": {
+      "required_fields": ["excerpt", "source_url", "stated_by"],
+      "stated_by_vocabulary": ["employer", "platform", "aggregator", "official_register", "inference"],
+      "min_excerpt_chars": 12,
+      "max_excerpt_chars": 400,
+      "require_canonical_record": true,
+      "require_quotation_in_canonical_employer_text": true,
+      "require_authoritative_source_url": true,
+      "require_canonical_supporting_facts": true,
+      "notes": "A hard blocker is a DECIDED factual rejection, not an unresolved question, so it must quote what was actually said, say where that was read, and say who said it. `platform` is the search platform's own classification, such as LinkedIn's `Employment type` block or a results-card label, and can never state an employer fact on its own; `inference` can never support a blocker at all. An unresolved gate belongs in verification_needed instead.",
+      "canonical_notes": "Those three fields are written by the same model that proposes the score, so on their own they prove nothing: a fabricated excerpt beside a plausible URL and an invented years figure would satisfy every one of them. Each is therefore checked against what this workspace canonically holds for the vacancy. The excerpt must appear in the employer description body stored in the job-description cache, after Unicode and whitespace normalisation. The source URL must be one the discovery record actually names for this vacancy. Every fact a precondition consumes is read from the stored record rather than from the proposal, and a proposal fact contradicting the stored one fails visibly. Because the cached body is the employer text with the platform chrome already split off, requiring the quotation to appear in it structurally excludes search cards, recommendation panels and platform classifications instead of trying to recognise them. When no canonical employer text exists the blocker fails CLOSED and becomes a verification need, since a missing fact is not evidence of the blocker."
+    },
+    "vocabulary": [
+      {"id": "seniority", "display_name": "Over-levelled role", "applies_when": "candidate_config.seniority.excluded_levels",
+       "precondition": "excluded_level_is_the_role_level", "requires_stated_by": ["employer"],
+       "matched_value_from": "candidate_config.seniority.excluded_levels",
+       "matched_value_must_appear_in_text": true,
+       "accepted_levels_from": ["candidate_config.seniority.acceptable_levels"],
+       "permitted_bases": ["canonical_title"],
+       "notes": "The LEVEL has to be the role's own, stated by the employer in its title, and not a word that merely appears somewhere in the advert. A reporting line, a stakeholder's job title, a team description and a note about future progression all routinely contain `senior`, `lead` or `manager` without the vacancy being any of them. A title naming both an accepted level and an excluded one is MIXED, so `Mid to Senior Engineer` is reviewable rather than rejected, and a role is never rejected merely for calling itself mid-level."},
+      {"id": "experience_requirement", "display_name": "Hard experience minimum beyond calibration", "applies_when": "candidate_config.seniority.hard_block_at_or_above_years",
+       "precondition": "structured_minimum_years_at_or_above_hard_maximum", "requires_stated_by": ["employer"],
+       "requires_facts": ["years_required_min"],
+       "threshold_from": "candidate_config.seniority.hard_block_at_or_above_years",
+       "threshold_is_inclusive": true,
+       "review_threshold_from": "candidate_config.seniority.review_from_years",
+       "quotation_must_state_the_same_minimum": true},
+      {"id": "wrong_specialism", "display_name": "Primary specialism is materially wrong", "applies_when": "candidate_config.specialisms.excluded",
+       "precondition": "excluded_specialism_is_the_primary_specialism", "requires_stated_by": ["employer"],
+       "matched_value_from": "candidate_config.specialisms.excluded",
+       "matched_value_must_appear_in_text": true,
+       "accepted_identities_from": ["candidate_config.target_roles", "candidate_config.adjacent_roles"],
+       "permitted_bases": ["canonical_title", "explicit_role_identity_statement"],
+       "notes": "A MENTION is not a specialism, and neither is a COUNT of mentions. Term frequency proves subject matter, not role identity: a Python backend or platform role legitimately discusses data, frontend, testing, DevOps, machine learning or mobile at length without being any of them, and this blocker eliminates a vacancy rather than ranking it down. Only explicit canonical employer evidence of the role's own IDENTITY qualifies: the employer's title naming an excluded identity from the controlled alias vocabulary, or an explicit role-identity statement in the employer text such as `We are hiring a Data Scientist` or `As a Data Scientist, you will`. A technology, a responsibility, a department, a stakeholder team, a desirable skill, a project domain and an adjacent discipline are none of them role identity. A title carrying both an accepted identity and an excluded one is MIXED, which is reviewable rather than blocked, and anything unproven is UNDECIDED, which is a verification need."},
+      {"id": "wrong_primary_language", "display_name": "Primary language is outside the candidate's stack", "applies_when": "candidate_config.skills.primary_languages",
+       "precondition": "foreign_primary_language_named", "requires_stated_by": ["employer"]},
+      {"id": "contract", "display_name": "Contract or day-rate engagement", "applies_when": "candidate_config.employment.excluded_types",
+       "precondition": "employer_stated_excluded_employment_type", "requires_stated_by": ["employer"],
+       "requires_facts": ["employment_type"], "matches_employment_types": ["contract", "freelance"],
+       "requires_independent_arrangement_wording": true,
+       "notes": "`contract` means INDEPENDENT CONTRACTING: day rate, inside or outside IR35, umbrella, self-employment, freelance, and labour supplied to a third party. Official sponsor guidance refuses a Certificate of Sponsorship for hiring a worker out to a third party or for ongoing routine contract work for one, which is exactly that pattern. It states no prohibition on a DIRECTLY EMPLOYED fixed-term role, and a Certificate of Sponsorship is normally assignable for up to five years, so `fixed-term` is deliberately absent from every employment blocker: it is scored conservatively on duration, stability, salary and employer identity, and stays reviewable. `contract-unspecified` is absent too, because the bare word `contract` in an advert is compatible with both and decides neither; it raises an employment_type verification need. The blocker additionally requires the quoted employer wording to NAME an independent arrangement, so a structured `contract` fact cannot eliminate a vacancy unless the advert actually says the engagement is one. See config/immigration_rules.json for the sources and the dates they were checked."},
+      {"id": "temporary", "display_name": "Temporary or fixed short-term engagement", "applies_when": "candidate_config.employment.excluded_types",
+       "precondition": "employer_stated_excluded_employment_type", "requires_stated_by": ["employer"],
+       "requires_facts": ["employment_type"], "matches_employment_types": ["temporary"]},
+      {"id": "apprenticeship", "display_name": "Apprenticeship, internship or training scheme", "applies_when": "candidate_config.employment.excluded_types",
+       "precondition": "employer_stated_excluded_employment_type", "requires_stated_by": ["employer"],
+       "requires_facts": ["employment_type"], "matches_employment_types": ["apprenticeship", "internship"]},
+      {"id": "security_clearance", "display_name": "Security clearance the candidate cannot obtain", "applies_when": "candidate_config.constraints.security_clearance_obtainable",
+       "precondition": "security_clearance_required", "requires_stated_by": ["employer"]},
+      {"id": "salary_below_hard_floor", "display_name": "Salary below the configured hard floor", "applies_when": "candidate_config.salary.hard_floor",
+       "precondition": "structured_salary_below_configured_floor", "requires_stated_by": ["employer"],
+       "requires_any_facts": ["salary_max", "salary_min"],
+       "threshold_from": "candidate_config.salary.hard_floor"},
+      {"id": "explicit_no_sponsorship", "display_name": "Vacancy or employer explicitly will not sponsor", "applies_when": "candidate_config.sponsorship.eventual_sponsorship_required",
+       "precondition": "vacancy_level_sponsorship_refusal", "requires_stated_by": ["employer"]},
+      {"id": "outside_market", "display_name": "Role is outside the accepted market", "applies_when": "candidate_config.location.market",
+       "precondition": "canonical_country_outside_market", "requires_stated_by": ["employer"],
+       "requires_facts": ["country"],
+       "market_from": "candidate_config.location.market",
+       "notes": "A hard blocker must PROVE its condition. This workspace holds no gazetteer, so an unfamiliar city, remote wording, an aggregator location line, a missing location and a model's own reading are all incapable of establishing that a role sits outside the accepted market. Only a controlled country code recorded as an employer-grade fact on the canonical record can, and it is compared with the codes the market accepts. Everything else is a verification need."}
+    ],
+    "never_blockers": [
+      {"id": "sponsorship_unknown", "reason": "Unknown is not a refusal. An employer that has not said anything about sponsorship has not declined to sponsor, and treating silence as a no would discard most of the market."},
+      {"id": "salary_unstated", "reason": "A great many UK adverts omit salary. An unstated salary is missing information, not a low salary."},
+      {"id": "missing_desirable_skill", "reason": "A desirable-but-not-required skill is what a job description is for. One missing nice-to-have is a small tech_fit deduction, never a blocker."},
+      {"id": "non_preferred_location_inside_market", "reason": "A preferred city is a tie-breaker. Anywhere inside the accepted market is fully acceptable and carries no penalty at all."},
+      {"id": "generic_job_title", "reason": "A generic title such as Software Engineer says nothing on its own. Judge the responsibilities."},
+      {"id": "register_not_found", "reason": "Absence from a dated register snapshot under the names we know is not evidence that an employer cannot sponsor."}
+    ],
+    "notes": "A hard blocker overrides the numeric total and sets eligible false. It does NOT zero the component scores: the diagnostic score is preserved so a later change of evidence can be understood. Every blocker here is conditional on private candidate calibration; nothing in this file decides on its own that a given candidate is blocked. Membership of this vocabulary is NOT on its own permission to apply a blocker: each entry names the deterministic precondition its factual claim has to satisfy, and a proposal whose facts do not satisfy it is refused rather than believed."
+  },
+  "uncertainty": {
+    "vocabulary": ["known", "partial", "unknown"],
+    "definitions": {
+      "known": "The vacancy or an authoritative source states this directly.",
+      "partial": "There is real evidence but it is incomplete, indirect or dated.",
+      "unknown": "The evidence does not establish this at all."
+    },
+    "notes": "Uncertainty is recorded per component. Unknown information must lower confidence and raise a verification need, never invite a guess in either direction."
+  },
+  "verification_reasons": [
+    "sponsorship",
+    "salary",
+    "open_status",
+    "experience_requirement",
+    "employment_type",
+    "security_clearance",
+    "official_source",
+    "employer_identity",
+    "work_pattern"
+  ],
+  "verification_policy": {
+    "verify_first_is_an_action": true,
+    "notes": "A role may score well AND require verification. `Verify first` is a recommended action on a scored role: it never changes the score, the band, or the lead type. A Direct Match needing sponsorship verification is still a Direct Match. `Verification Lead` is a separate lead_type for a direct-employer role that cannot honestly be scored yet because a decision-critical external gate is unresolved."
+  },
+  "evidence_policy": {
+    "required_for_components": ["tech_fit", "seniority_experience", "sponsorship", "employment_conditions", "company_environment"],
+    "min_evidence_chars": 8,
+    "max_evidence_chars": 400,
+    "uncertainty_ceilings": {
+      "known": 1.0,
+      "partial": 0.75,
+      "unknown": 0.4
+    },
+    "uncertainty_ceiling_notes": "A component can never score above its uncertainty ceiling, which is floor(component max_score x ratio). `known` is uncapped because the vacancy stated the fact. `partial` is capped at three quarters because incomplete, indirect or dated evidence can never be full marks. `unknown` is capped below half because evidence that establishes nothing must never earn a majority of a component, while still not being scored as zero: unknown is not a negative fact. A character count is not a measure of meaning, so `min_evidence_chars` only refuses an empty claim; the ceilings and the anchors below are what actually keep a score grounded.",
+    "non_informative_evidence": {
+      "ceiling_uncertainty": "unknown",
+      "min_substantive_tokens": 2,
+      "phrases": [
+        "no evidence", "no vacancy evidence", "no supporting evidence", "no usable evidence",
+        "no information", "no details", "no detail", "no data", "no mention", "no statement",
+        "not stated", "not specified", "not mentioned", "not disclosed", "not provided",
+        "not given", "not available", "not established", "does not state", "did not state",
+        "nothing stated", "says nothing", "unknown", "unclear",
+        "cannot be determined", "could not be determined", "unable to determine",
+        "unable to assess", "to be confirmed", "tbd", "n a"
+      ],
+      "filler_tokens": [
+        "a", "an", "the", "and", "or", "but", "is", "are", "was", "were", "be", "been", "being",
+        "for", "this", "that", "these", "those", "it", "its", "of", "on", "in", "at", "to",
+        "from", "with", "about", "as", "by", "any", "all", "so", "there", "here", "we", "they",
+        "role", "vacancy", "advert", "advertisement", "posting", "post", "job", "listing",
+        "component", "evidence", "information", "detail", "details", "available", "provided",
+        "given", "found", "regarding", "concerning", "currently", "either", "way", "anything"
+      ],
+      "notes": "Evidence that is essentially a statement that there is no evidence cannot support a high score. A phrase match alone is NOT enough, because `salary not stated` inside `Permanent and hybrid; salary not stated` is a real claim about a real vacancy: the evidence is treated as non-informative only when removing the matched phrases and ordinary filler leaves fewer than min_substantive_tokens substantive words behind. Non-informative evidence LOWERS the ceiling to the `unknown` ratio; it never rejects the component and never converts silence into a negative fact."
+    },
+    "unknown_requires_verification": {
+      "tech_fit": ["official_source"],
+      "seniority_experience": ["experience_requirement", "official_source"],
+      "sponsorship": ["sponsorship"],
+      "employment_conditions": ["salary", "employment_type", "work_pattern"],
+      "company_environment": ["official_source", "employer_identity"]
+    },
+    "unknown_requires_verification_notes": "A component whose evidence establishes nothing may still be scored, conservatively, but the gap must stay VISIBLE: it has to raise one of the verification reasons listed for that component. This is what keeps an unknown-sponsorship role a scored Direct candidate with an explicit verification action rather than either a silent guess or an automatic rejection.",
+    "full_marks_anchors": {
+      "tech_fit": {
+        "requires_uncertainty": "known",
+        "requires_facts": ["skills"],
+        "min_evidence_chars": 40,
+        "description": "Full marks require the vacancy's own stated stack, extracted as structured skills, plus a substantive evidence claim naming the duties. A reading of the title or a general impression is not the strongest anchor available."
+      },
+      "seniority_experience": {
+        "requires_uncertainty": "known",
+        "requires_facts": ["years_required_min"],
+        "min_evidence_chars": 40,
+        "description": "Full marks require the vacancy to have STATED its experience requirement, captured as a structured minimum. A role that never said what it wanted cannot be a perfect seniority fit; it can only be an unobjectionable one."
+      },
+      "sponsorship": {
+        "requires_uncertainty": "known",
+        "requires_sponsorship_signal": "strong",
+        "min_evidence_chars": 40,
+        "description": "Full marks require VACANCY-LEVEL sponsorship evidence: the evidence claim must quote wording that the deterministic sponsorship reader classifies as an offer to sponsor. A sponsor licence is organisation-level capability and can never reach the top of this component, exactly as the official register grants that same fact only moderate support."
+      },
+      "employment_conditions": {
+        "requires_uncertainty": "known",
+        "requires_facts": ["employment_type", "salary_min", "work_pattern"],
+        "min_evidence_chars": 40,
+        "description": "Full marks require the advert to have stated all three of the things this component measures: the employment type, a salary, and the working pattern. Anything less is a partial picture scored as one."
+      },
+      "company_environment": {
+        "requires_uncertainty": "known",
+        "min_evidence_chars": 60,
+        "description": "This workspace holds no structured fact describing an engineering environment, so the strongest anchor available is a substantive, specific evidence claim about the team and the ownership of the work. That is deliberately the weakest anchor here, and it is stated rather than hidden."
+      }
+    },
+    "notes": "Every component carries a short evidence claim naming what the vacancy or an authoritative source actually said. Evidence is compact by design: it exists so a score can be audited, not to reproduce the advert. Three deterministic rules keep a score grounded: an uncertainty ceiling no component may exceed, a non-informative-evidence rule that drops the ceiling when the claim says only that nothing is known, and a per-component full-marks anchor that the exact maximum requires."
+  },
+    "specialism_identity": {
+      "min_alias_chars": 6,
+      "notes": "Controlled role-identity aliases, keyed by the excluded specialism a candidate calibration may list. Matching is whole-phrase over normalised tokens, never arbitrary substring matching, so `data science` cannot match inside an unrelated word and hyphenation or spacing differences fold away. Every alias must be at least min_alias_chars long, which is what stops a short token such as `ml` or `qa` from carrying an elimination. An excluded specialism with no aliases here can never auto-block; it becomes a verification need, which is the correct fail-closed outcome rather than a gap. This is an industry role vocabulary and holds no candidate data. The accepted identities that make a title MIXED are read from the private calibration's own target and adjacent roles, so this file never has to know them.",
+      "aliases": {
+        "data science": [
+          "data scientist",
+          "data science",
+          "data analyst",
+          "senior data scientist",
+          "applied scientist"
+        ],
+        "machine learning research": [
+          "machine learning research",
+          "machine learning researcher",
+          "ml researcher",
+          "machine learning scientist",
+          "research scientist",
+          "ai researcher"
+        ],
+        "quantitative research": [
+          "quantitative research",
+          "quantitative researcher",
+          "quantitative analyst",
+          "quant researcher",
+          "quant analyst",
+          "quantitative developer"
+        ],
+        "embedded": [
+          "embedded software engineer",
+          "embedded systems engineer",
+          "embedded engineer",
+          "embedded developer",
+          "firmware engineer"
+        ],
+        "game development": [
+          "game developer",
+          "game development",
+          "game programmer",
+          "gameplay engineer",
+          "gameplay programmer",
+          "unity developer",
+          "unreal engineer"
+        ],
+        "frontend only": [
+          "frontend developer",
+          "frontend engineer",
+          "front end developer",
+          "front end engineer",
+          "ui developer",
+          "ui engineer",
+          "react developer"
+        ],
+        "technical support": [
+          "technical support engineer",
+          "technical support",
+          "support engineer",
+          "it support",
+          "helpdesk engineer",
+          "service desk analyst"
+        ]
+      }
+    },
+  "sponsorship_evidence_ladder": [
+    {"id": "vacancy_statement", "rank": 5, "description": "This advert states its sponsorship position."},
+    {"id": "employer_statement", "rank": 4, "description": "The employer's own current words about sponsorship."},
+    {"id": "comparable_role_evidence", "rank": 3, "description": "Recent sponsorship of a comparable-level role at this employer."},
+    {"id": "register_licence", "rank": 2, "description": "A current official register snapshot lists the organisation as licensed."},
+    {"id": "register_stale", "rank": 1, "description": "A register entry from a snapshot that is no longer fresh."},
+    {"id": "unknown", "rank": 0, "description": "No usable sponsorship evidence."}
+  ],
+  "sponsorship_policy": {
+    "immigration_reference": "config/immigration_rules.json",
+    "salary_thresholds_live_in_the_immigration_reference": true,
+    "junior_role_without_sponsorship_history_is_not_a_rejection": true,
+    "licence_is_not_vacancy_sponsorship": true,
+    "not_found_is_not_refusal": true,
+    "stale_register_is_not_current_proof": true,
+    "unknown_is_not_no": true,
+    "notes": "A stronger score requires stronger evidence. Register-only evidence cannot reach the top of the component, because a licence is an organisation fact and this vacancy may still not sponsor. An explicit refusal is a blocker when the candidate requires sponsorship; silence is not."
+  },
+  "reproducibility": {
+    "fingerprint_files": [
+      "candidate/config.json",
+      "config/matching_policy.json",
+      "config/search_strategy.json",
+      "config/sources.json",
+      "job_scraper/reference/sponsor-register-meta.json"
+    ],
+    "evaluation_fingerprint_files": [
+      "candidate/config.json",
+      "config/matching_policy.json"
+    ],
+    "notes": "New ranking snapshots record a sha256 of each configuration that produced them, so a historical shortlist can be traced to the calibration in force at the time. Historical snapshots are never rewritten to add this. `evaluation_fingerprint_files` is the narrower set an individual evaluation carries: the two files that actually decide a score. The write boundary refuses a NEW evaluation whose fingerprints disagree with the live files, because such an object was calculated against a calibration that is no longer in force; a stored evaluation that goes stale later is REPORTED as stale rather than rewritten."
+  }
+}

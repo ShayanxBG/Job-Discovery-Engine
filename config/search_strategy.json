@@ -1,0 +1,902 @@
+{
+  "schema_version": 2,
+  "description": "Deterministic definition of HOW this workspace searches. It describes search methods only: query families, their budgets, and the term slots each family fills from a private candidate search profile. It contains no candidate values and is deliberately publishable. config/sources.json remains the owner of source identity and inventory family; this file never redefines a source.",
+  "vocabularies": {
+    "priority": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5"
+    ],
+    "term_slots": [
+      "target_titles",
+      "adjacent_titles",
+      "early_career_titles",
+      "primary_languages",
+      "frameworks",
+      "backend_capabilities",
+      "database_terms",
+      "integration_terms"
+    ],
+    "saturation_states": [
+      "CONTINUE",
+      "SATURATED",
+      "BUDGET_EXHAUSTED",
+      "GAP_REMAINS"
+    ]
+  },
+  "modes": {
+    "quick": {
+      "global_query_budget": 12,
+      "global_raw_candidate_ceiling": 120,
+      "global_deep_jd_ceiling": 20,
+      "family_budget_multiplier": 0.5,
+      "min_family_query_reservation": 0,
+      "notes": "A deliberately narrow sweep. Fewer families, highest-signal queries only, so this mode reserves nothing and spends strictly by priority.",
+      "employer_ats_check_ceiling": 2
+    },
+    "deep": {
+      "global_query_budget": 36,
+      "global_raw_candidate_ceiling": 400,
+      "global_deep_jd_ceiling": 70,
+      "family_budget_multiplier": 1.0,
+      "min_family_query_reservation": 2,
+      "notes": "The normal /scrape budget. Breadth across families before depth on any one.",
+      "employer_ats_check_ceiling": 10,
+      "exploratory_reservation": 2,
+      "exploratory_reservation_rationale": "Deep exists to search wider than daily, so it holds two slots back for the adjacent-software recall widener. They are spendable ONLY after this run's own mandatory obligation is funded: its per-tier service reservation, its required inventory-family routes, and as much breached repair as the remaining allowance affords. Two rather than one so the diversity rule has something to prove: two slots must produce two distinct terms and two distinct sources. Daily, exhaustive and the bootstrap reserve nothing, because daily may legitimately spend everything on service and the other two owe every bucket they are asked for."
+    },
+    "exhaustive": {
+      "global_query_budget": 100,
+      "global_raw_candidate_ceiling": 900,
+      "global_deep_jd_ceiling": 140,
+      "family_budget_multiplier": 4.0,
+      "min_family_query_reservation": 2,
+      "notes": "Explicitly user-selected wide sweep, and the only mode that must execute EVERY critical and rolling obligation in one run. The budget rose from 60 because 60 could not: it funded 33 buckets while deferring 140 it called mandatory, which makes the name a lie. Cartesian duplication was removed first and the remaining obligations are genuinely independent inventory and intent. Employer ATS stays separately bounded at 20. Never selected automatically, and the expanded budget is reported before searching.",
+      "employer_ats_check_ceiling": 20,
+      "fund_all_mandatory_buckets": true,
+      "fund_all_mandatory_rationale": "Exhaustive is the one mode that must execute every critical and rolling obligation in a single run. Its per-family floors are therefore DERIVED from the mandatory bucket counts rather than from a multiplier somebody picked, so the mode cannot finish successfully while deferring work it calls mandatory. If the obligations grow, the floors grow with them and the budget check fails loudly instead of the mode quietly meaning less than its name."
+    },
+    "gapfill": {
+      "global_query_budget": 18,
+      "global_raw_candidate_ceiling": 180,
+      "global_deep_jd_ceiling": 30,
+      "family_budget_multiplier": 0.75,
+      "min_family_query_reservation": 2,
+      "notes": "Targeted repair of a RECORDED inventory-family gap. It searches the families that lost coverage, not a fresh multi-source sweep, and it is never planned unprompted.",
+      "employer_ats_check_ceiling": 6
+    },
+    "daily": {
+      "global_query_budget": 30,
+      "global_raw_candidate_ceiling": 260,
+      "global_deep_jd_ceiling": 45,
+      "family_budget_multiplier": 1.0,
+      "min_family_query_reservation": 2,
+      "employer_ats_check_ceiling": 8,
+      "notes": "The normal daily run. Lower query and deep-read ceilings than catch-up, because a single day of new inventory is small and re-reading already-seen roles is waste. Strong source-family breadth is kept: the reserved family minimums come off the top before priority spends the rest."
+    },
+    "catchup": {
+      "global_query_budget": 36,
+      "global_raw_candidate_ceiling": 400,
+      "global_deep_jd_ceiling": 70,
+      "family_budget_multiplier": 1.0,
+      "min_family_query_reservation": 2,
+      "employer_ats_check_ceiling": 12,
+      "notes": "Initial catch-up or missed-run recovery. Retains the historical 36/400/70 ceilings and searches the SELECTED recovery window directly, in ONE pass. There is no nested 24h then 7d then 14d sweep: that spent three budgets to search one window three times."
+    },
+    "initial_catchup": {
+      "global_query_budget": 58,
+      "global_raw_candidate_ceiling": 644,
+      "global_deep_jd_ceiling": 113,
+      "family_budget_multiplier": 4.0,
+      "min_family_query_reservation": 2,
+      "employer_ats_check_ceiling": 12,
+      "fund_all_critical_buckets": true,
+      "one_time_bootstrap_mode": true,
+      "budget_derivation": {
+        "critical_obligations": 33,
+        "minimum_family_coverage": 7,
+        "event_driven_startup": 2,
+        "bounded_exploratory_allowance": 4,
+        "total": 58,
+        "explanation": "Every one of the 33 critical buckets, plus one rolling route into each of the seven enabled families that hold no critical work, plus the reserved employer-ATS startup pair, plus a small explicitly bounded exploratory allowance, plus the remaining slots freed when linkedin left the primary inventory families (2026-08-31) and when sponsor-board and jobserve lost their obligations for being unable to execute a query or verify freshness (2026-08-31). Those freed slots are NOT surrendered: they fund rolling-recall representatives on the demoted and secondary families, so the same 58 queries still reach the same inventory and the bootstrap keeps its breadth. DERIVED from the obligations rather than picked, so it moves when they move: `critical_obligations` is asserted here only so the validator can prove it still equals coverage_ledger.required_universe(); never read it as the authority. It is a ONE-TIME budget: the ordinary daily ceiling of 30 is untouched.",
+        "raw_and_deep_derivation": "Raw candidates and deep reads are scaled from the catch-up mode’s own ratios, 11.11 and 1.94 per query, so a bootstrap run reads at the same density as a recovery run rather than at a density nobody chose.",
+        "demoted_primary_rolling_recall": 12
+      },
+      "notes": "The FIRST successful production run, and only that. Phase 4E declared critical_fresh covered on the initial catch-up and then funded 30 of 45 against a 36-query budget, which is a contract the budget could not keep. Substantially below exhaustive at 100, because it owes the critical tier and one route per family, not every rolling obligation."
+    }
+  },
+  "allocation_policy": {
+    "description": "How the global query budget is shared between APPLICABLE search families. A family is applicable when the candidate profile and the source registry can actually produce a query for it; one that cannot still receives zero.",
+    "notes": "min_family_query_reservation is set per mode and is the number of queries every applicable family is reserved BEFORE the remainder is distributed in priority order. It exists because priority-only spending starves the tail: a deep run of 36 queries across families budgeted at 48 spent everything on the first four and left early-career and sponsorship-oriented at zero, which for an early-career profile needing eventual sponsorship is missing coverage rather than a considered choice. It is not equal shares: the reservation is small, and higher-priority direct and backend families still take most of the remainder. Two is the floor because saturation_policy.min_queries_before_saturation is two, so a family given fewer queries than that can never honestly be reported as saturated or covered. Reserved family minimums are taken FIRST, then the per-family reservation, then priority spends what is left. A lower-priority family can therefore never consume a reserved allocation.",
+    "reserved_before_priority": true,
+    "critical_term_cluster_minimums": {
+      "direct-title": 3
+    },
+    "critical_term_cluster_rationale": "A critical family must reach several distinct TERM CLUSTERS, not one phrase on many boards. Every bucket is breached on a cold start, so the deadline order broke ties alphabetically and direct-title spent seven slots on two clusters while two target titles went unsearched. The minimum is bounded by the clusters that actually exist, so it can never demand a duplicate, and it is claimed before any exploratory reservation: the recall widener may not cost the primary title family its breadth. The slot it uses is reclaimed from the same family's own surplus depth, which is the lowest-priority funded work above an effective obligation."
+  },
+  "budget_policy": {
+    "counts_by": [
+      "query_count",
+      "candidate_count",
+      "new_canonical_yield"
+    ],
+    "notes": "Effort is bounded by countable work, never by a promised wall-clock time. Worker runtime is not mechanically enforceable from a prompt, so no budget here is expressed in minutes. A stuck or non-essential worker is dropped rather than allowed to block run completion; that is an operational rule in the scrape skill, not a budget."
+  },
+  "saturation_policy": {
+    "min_queries_before_saturation": 2,
+    "zero_yield_streak_to_saturate": 2,
+    "notes": "A family is SATURATED only after it has met its minimum query coverage AND two consecutive distinct completed queries produced zero NEW canonical candidates. One empty query never saturates a family. A query whose source failed is coverage loss, not zero yield: it is excluded from the streak and leaves the family GAP_REMAINS. A single high-volume source can never saturate a family it does not belong to."
+  },
+  "families": [
+    {
+      "id": "direct-title",
+      "display_name": "Direct title match",
+      "purpose": "Highest-signal queries built from the candidate's own target job titles.",
+      "priority": 1,
+      "query_budget": 8,
+      "candidate_budget": 40,
+      "requires_body_validation": false,
+      "eligible_sources": [
+        "linkedin",
+        "indeed",
+        "cwjobs",
+        "totaljobs",
+        "reed",
+        "dwp-find-a-job",
+        "built-in",
+        "welcome-to-the-jungle",
+        "jobserve",
+        "technojobs",
+        "adzuna",
+        "public-web"
+      ],
+      "term_slots": [
+        "target_titles"
+      ],
+      "query_templates": [
+        {
+          "id": "title",
+          "slots": [
+            "target_titles"
+          ],
+          "shape": "{target_titles}"
+        }
+      ],
+      "notes": "The most reliable family and the easiest to over-search. Ten variations of one title are one family, not broad coverage.",
+      "plan_by_default": true,
+      "required_coverage": true
+    },
+    {
+      "id": "backend-capability",
+      "display_name": "Backend capability",
+      "purpose": "Search for the work rather than the title, so a well-fitting vacancy with an unusual title is still found.",
+      "priority": 2,
+      "query_budget": 10,
+      "candidate_budget": 40,
+      "requires_body_validation": false,
+      "eligible_sources": [
+        "linkedin",
+        "indeed",
+        "cwjobs",
+        "totaljobs",
+        "reed",
+        "dwp-find-a-job",
+        "built-in",
+        "welcome-to-the-jungle",
+        "jobserve",
+        "technojobs",
+        "adzuna",
+        "public-web"
+      ],
+      "term_slots": [
+        "primary_languages",
+        "frameworks",
+        "backend_capabilities",
+        "database_terms",
+        "integration_terms"
+      ],
+      "query_templates": [
+        {
+          "id": "language-framework",
+          "slots": [
+            "primary_languages",
+            "frameworks"
+          ],
+          "shape": "{primary_languages} {frameworks}"
+        },
+        {
+          "id": "language-capability",
+          "slots": [
+            "primary_languages",
+            "backend_capabilities"
+          ],
+          "shape": "{primary_languages} {backend_capabilities}"
+        },
+        {
+          "id": "language-database",
+          "slots": [
+            "primary_languages",
+            "database_terms"
+          ],
+          "shape": "{primary_languages} {database_terms}"
+        },
+        {
+          "id": "language-integration",
+          "slots": [
+            "primary_languages",
+            "integration_terms"
+          ],
+          "shape": "{primary_languages} {integration_terms}"
+        }
+      ],
+      "notes": "Capability queries find roles that title queries miss. They also return more noise, so their candidates still pass the ordinary cheap gates.",
+      "plan_by_default": true,
+      "required_coverage": true
+    },
+    {
+      "id": "adjacent-software",
+      "display_name": "Adjacent software title",
+      "purpose": "Generic engineering titles whose adverts may never name the candidate's primary language.",
+      "priority": 3,
+      "query_budget": 8,
+      "candidate_budget": 30,
+      "requires_body_validation": true,
+      "eligible_sources": [
+        "linkedin",
+        "indeed",
+        "cwjobs",
+        "totaljobs",
+        "reed",
+        "dwp-find-a-job",
+        "built-in",
+        "welcome-to-the-jungle",
+        "jobserve",
+        "technojobs",
+        "adzuna",
+        "public-web"
+      ],
+      "term_slots": [
+        "adjacent_titles"
+      ],
+      "query_templates": [
+        {
+          "id": "adjacent-title",
+          "slots": [
+            "adjacent_titles"
+          ],
+          "shape": "{adjacent_titles}"
+        }
+      ],
+      "notes": "requires_body_validation is true: a generic title is only interesting when the body shows backend/application/API work is genuinely central. Retain nothing on the title alone.",
+      "plan_by_default": true,
+      "required_coverage": false
+    },
+    {
+      "id": "early-career",
+      "display_name": "Early career",
+      "purpose": "Junior, graduate, associate and numbered-level titles that match the candidate's seniority band.",
+      "priority": 4,
+      "query_budget": 6,
+      "candidate_budget": 30,
+      "requires_body_validation": false,
+      "eligible_sources": [
+        "linkedin",
+        "indeed",
+        "cwjobs",
+        "totaljobs",
+        "reed",
+        "dwp-find-a-job",
+        "built-in",
+        "welcome-to-the-jungle",
+        "jobserve",
+        "technojobs",
+        "adzuna",
+        "public-web"
+      ],
+      "term_slots": [
+        "early_career_titles"
+      ],
+      "query_templates": [
+        {
+          "id": "early-career-title",
+          "slots": [
+            "early_career_titles"
+          ],
+          "shape": "{early_career_titles}"
+        }
+      ],
+      "notes": "Only planned when the profile's seniority band actually supports it. Never forced onto a profile it does not fit.",
+      "plan_by_default": true,
+      "required_coverage": true
+    },
+    {
+      "id": "employer-ats",
+      "display_name": "Employer careers and ATS",
+      "purpose": "Targeted search of known employer career systems and ATS tenants from the bounded watchlist.",
+      "priority": 3,
+      "query_budget": 10,
+      "candidate_budget": 25,
+      "requires_body_validation": false,
+      "eligible_sources": [
+        "employer-direct",
+        "employer-ats",
+        "public-web"
+      ],
+      "term_slots": [
+        "target_titles",
+        "primary_languages"
+      ],
+      "query_templates": [
+        {
+          "id": "employer-title",
+          "slots": [
+            "target_titles"
+          ],
+          "shape": "{target_titles}"
+        },
+        {
+          "id": "employer-language",
+          "slots": [
+            "primary_languages"
+          ],
+          "shape": "{primary_languages}"
+        }
+      ],
+      "notes": "Driven by the bounded employer watchlist, never by enumerating a sponsor register. Highest source authority, so a board listing resolved here is a provenance upgrade.",
+      "plan_by_default": true,
+      "required_coverage": false
+    },
+    {
+      "id": "sponsorship-oriented",
+      "display_name": "Sponsorship-oriented lead discovery",
+      "purpose": "Sponsor-focused boards used as lead generators only, followed by authoritative employer/current-evidence verification.",
+      "priority": 5,
+      "query_budget": 6,
+      "candidate_budget": 20,
+      "requires_body_validation": false,
+      "eligible_sources": [
+        "hunt-uk-visa-sponsors",
+        "skilledjobs",
+        "sponsoredjobs",
+        "findsponsorjobs",
+        "gradsponsor",
+        "jobsponsor",
+        "public-web"
+      ],
+      "term_slots": [
+        "target_titles",
+        "primary_languages"
+      ],
+      "query_templates": [
+        {
+          "id": "sponsor-title",
+          "slots": [
+            "target_titles"
+          ],
+          "shape": "{target_titles}"
+        },
+        {
+          "id": "sponsor-language",
+          "slots": [
+            "primary_languages"
+          ],
+          "shape": "{primary_languages}"
+        }
+      ],
+      "notes": "A hit here is a lead, never a sponsorship conclusion. The evidence ladder is unchanged: a licence is not a promise that this vacancy sponsors.",
+      "plan_by_default": true,
+      "required_coverage": true,
+      "eligible_sources_rationale": "UNCHANGED SOURCE LIST, CHANGED OBLIGATION (2026-08-31). The sponsorship intent is routed here and nowhere else, and was ALSO declared critical, which made a 72-hour promise whose only inventory declares freshness_support 'unknown' and, for gradsponsor and findsponsorjobs, was observed returning unfiltered inventory whatever was typed: two of its three critical buckets were permanently uncoverable and initial catch-up could never finish. The family KEEPS all three mandatory buckets and is still planned and searched; `family_capability` simply caps it at rolling_recall's seven-day target, which it can actually keep. Reassigning the intent to a primary inventory was tried and reverted the same day: a 30-run daily simulation never once funded indeed::sponsorship-oriented::integration-developer, so that was a different promise the allocator could not keep. Sponsorship QUALITY never depended on this family: it is carried by sponsor-register licence checking, employer resolution, job-description sponsorship evidence and explicit-no-sponsorship blocking, with unknown left unknown."
+    },
+    {
+      "id": "gapfill",
+      "display_name": "Coverage gapfill",
+      "purpose": "Queries aimed specifically at a family, source or query class that is under-covered in the current run.",
+      "priority": 5,
+      "query_budget": 8,
+      "candidate_budget": 30,
+      "requires_body_validation": false,
+      "eligible_sources": [
+        "linkedin",
+        "indeed",
+        "cwjobs",
+        "totaljobs",
+        "reed",
+        "dwp-find-a-job",
+        "built-in",
+        "welcome-to-the-jungle",
+        "jobserve",
+        "technojobs",
+        "adzuna",
+        "employer-direct",
+        "employer-ats",
+        "public-web"
+      ],
+      "term_slots": [
+        "target_titles",
+        "primary_languages",
+        "backend_capabilities"
+      ],
+      "query_templates": [
+        {
+          "id": "gapfill-title",
+          "slots": [
+            "target_titles"
+          ],
+          "shape": "{target_titles}"
+        },
+        {
+          "id": "gapfill-capability",
+          "slots": [
+            "primary_languages",
+            "backend_capabilities"
+          ],
+          "shape": "{primary_languages} {backend_capabilities}"
+        }
+      ],
+      "notes": "Planned only when explicitly requested against a recorded family gap or an under-covered query family, which is why plan_by_default is false. It repairs coverage; it is not an excuse for another pass over an already saturated family.",
+      "plan_by_default": false,
+      "required_coverage": false
+    }
+  ],
+  "body_signals": {
+    "description": "Deterministic body/JD signals used as a CHEAP GATE before any expensive reasoning, mainly for families whose requires_body_validation is true. This is a gate, not a score, and one incidental keyword is never enough.",
+    "min_distinct_signals": 2,
+    "backend_signals": [
+      "python",
+      "django",
+      "fastapi",
+      "flask",
+      "rest api",
+      "restful",
+      "api",
+      "postgresql",
+      "postgres",
+      "mysql",
+      "sql",
+      "backend",
+      "back-end",
+      "back end",
+      "server-side",
+      "server side",
+      "microservice",
+      "microservices",
+      "integration",
+      "integrations",
+      "web services",
+      "backend services",
+      "django rest framework",
+      "celery",
+      "sqlalchemy",
+      "pydantic"
+    ],
+    "incidental_only_signals": [
+      "api",
+      "sql",
+      "integration",
+      "integrations",
+      "python"
+    ],
+    "counter_signals": [
+      "react developer",
+      "frontend developer",
+      "front-end developer",
+      "front end developer",
+      "ui developer",
+      "ui engineer",
+      "css",
+      "wordpress",
+      "webflow",
+      "figma",
+      "graphic design"
+    ],
+    "notes": "min_distinct_signals demands more than one distinct backend signal, so a frontend advert that mentions Python once is not promoted. incidental_only_signals are terms so common that on their own they mean little; a candidate whose only evidence is incidental terms is LOW_SIGNAL. counter_signals describe a different specialism and pull against promotion. A deterministic HARD_REJECT is reserved for the existing hard blockers and is never inferred from body signals alone."
+  },
+  "query_dedup": {
+    "description": "Two deterministic query constructions that describe the same term set, for the same source and search mode, are one query and must not both consume budget.",
+    "ignore_tokens": [
+      "a",
+      "an",
+      "and",
+      "the",
+      "for",
+      "with",
+      "in",
+      "of",
+      "jobs",
+      "job",
+      "role",
+      "roles",
+      "vacancy",
+      "vacancies"
+    ],
+    "notes": "The dedup key is the normalised SET of significant terms plus the source and search mode, so word order never buys extra budget. 'Python Backend Engineer' and 'Backend Engineer Python' are the same query."
+  },
+  "diversity_policy": {
+    "min_families_for_broad_claim": 3,
+    "notes": "A run may only describe its query coverage as broad when it actually attempted at least this many DISTINCT search families and each of them completed at least one query. Ten variations of one title are one family. Search-family diversity is separate from source-family diversity: both are reported, and neither substitutes for the other."
+  },
+  "window_policy": {
+    "description": "Which time window a run searches, decided from RUN HISTORY rather than from yield. A quiet market is not evidence that the previous window was missed, so a small result count can never widen the window. The only thing that widens a window is a demonstrable gap between now and the last successful completed production run, and the window selected must COVER that gap.",
+    "supported_windows": [
+      "24h",
+      "7d",
+      "14d"
+    ],
+    "window_hours": {
+      "24h": 24,
+      "7d": 168,
+      "14d": 336
+    },
+    "daily_interval_hours": 24,
+    "initial_catchup_window": "14d",
+    "max_recovery_window": "14d",
+    "recovery_ladder": [
+      {
+        "max_gap_hours": 24,
+        "window": "24h"
+      },
+      {
+        "max_gap_hours": 168,
+        "window": "7d"
+      },
+      {
+        "max_gap_hours": 336,
+        "window": "14d"
+      }
+    ],
+    "yield_may_widen_window": false,
+    "notes": "The ladder picks the SMALLEST supported window that COVERS the gap, with INCLUSIVE upper bounds: a gap of exactly 24 hours selects 24h, and 24 hours and one minute selects 7d. There is deliberately no timing grace. A grace let a 30-hour gap be searched with a 24-hour window and lose six hours of inventory that nothing would ever report, which is the same invisible coverage failure that yield-based widening was removed for. Re-searching overlap costs nothing because deduplication absorbs it; a shortfall cannot be recovered. A gap beyond max_recovery_window is capped there, and the UNCOVERED hours are reported as a number rather than described as full coverage. Explicit 1d/7d/14d, gapfill and exhaustive are never silently widened.",
+    "boundary_rule": "inclusive_upper_bound",
+    "window_must_cover_gap": true,
+    "uncapped_recovery_advice": "Inventory older than the 14-day cap was NOT searched by this run. Nothing automatic will reach it: 14d is the longest window the boards support reliably. To recover it deliberately, run /scrape 14d again after this run completes to re-sweep the newest fortnight, and treat anything older as a manual search on the employer or ATS pages that matter most."
+  },
+  "family_minimums": {
+    "description": "Queries reserved for a family BEFORE any lower-priority family is funded. These exist because priority spending starved exactly the two families most likely to hold this vacancy: a 36-query plan reached only two early-career and two sponsorship queries. A reserved floor is not a target; a family that cannot build that many queries simply plans fewer.",
+    "reference_budget": 30,
+    "minimums": {
+      "core": 12,
+      "early-career": 6,
+      "sponsorship": 4
+    },
+    "classes": {
+      "core": [
+        "direct-title",
+        "backend-capability"
+      ],
+      "early-career": [
+        "early-career"
+      ],
+      "sponsorship": [
+        "sponsorship-oriented"
+      ]
+    },
+    "scaling": "proportional",
+    "min_after_scaling": 1,
+    "notes": "Below the reference budget the minimums scale proportionally and are floored at min_after_scaling, so a reduced-budget mode never reduces a required family to zero. Sponsorship queries SUPPLEMENT ordinary searches and never replace them, because most viable adverts say nothing about sponsorship at all and would be invisible to a sponsorship-only search. A mode declaring fund_all_mandatory_buckets takes its floors from the number of critical and rolling buckets each family owes, which is what makes `exhaustive` mean what it says.",
+    "mandatory_mode_key": "fund_all_mandatory_buckets",
+    "minimums_rationale": "Sized from the critical bucket counts and the 72-hour target rather than picked: 15 critical direct-title and 20 critical capability buckets need about 12 queries a day between them to cycle inside three runs, and 16 critical early-career buckets need six. At four a day early-career cycled in 96 hours, which is over its target while the tier it belongs to promises 72.",
+    "per_family": {
+      "direct-title": 5,
+      "backend-capability": 6,
+      "early-career": 6,
+      "sponsorship-oriented": 4
+    },
+    "per_family_rationale": "Derived from the critical bucket count per family divided by the three-run target, floored at the Phase 4 class minimums so no earlier guarantee is weakened. These are FLOORS taken before priority spends anything."
+  },
+  "rotation": {
+    "description": "Which core titles are paired with which primary inventory families, and in what order across runs. Without this the planner assigned one title per source in a fixed diagonal, so LinkedIn only ever saw the first title and most title-source combinations were never searched at all.",
+    "rotating_families": [
+      "direct-title",
+      "backend-capability"
+    ],
+    "primary_source_families": [
+      "linkedin",
+      "indeed",
+      "stepstone",
+      "reed",
+      "dwp"
+    ],
+    "cycle_length": 5,
+    "advance_on": "successful_completed_run",
+    "index_source": "run_history",
+    "notes": "The cycle index is the count of successful completed production runs, so it is deterministic from stored history and re-planning the same state produces the same plan. A failed or partial run does not advance it, because the combinations it was supposed to cover were not covered. cycle_length equals the number of primary inventory families, which is exactly what an offset rotation needs for every rotating title to reach every applicable family: a shorter cycle would leave some pairs permanently unreachable, which is the bug this replaces. Explicit focused modes may override rotation and must say so."
+  },
+  "employer_ats_policy": {
+    "description": "Employer ATS checks are bounded SEPARATELY from the web-query budget, so a busy watchlist can never quietly eat the board coverage, and a quiet watchlist can never donate its budget to more board queries.",
+    "bounded_separately_from_query_budget": true,
+    "due_ordering": [
+      "priority",
+      "evidence_strength",
+      "days_since_check",
+      "employer_key"
+    ],
+    "failure_backoff_days": [
+      1,
+      3,
+      7,
+      14,
+      30
+    ],
+    "max_consecutive_failures_before_disable": 5,
+    "notes": "A failed employer check backs off along failure_backoff_days rather than being retried every run. After max_consecutive_failures_before_disable the entry is disabled rather than deleted, so its history survives."
+  },
+  "coverage_policy": {
+    "description": "What a COVERAGE BUCKET is, and what each bucket is OWED. Phase 4D got the identity right and the obligation wrong: it treated all 173 term-by-source combinations as equally required, so a daily run funded 24 and deferred 81, and a mode named `exhaustive` funded 33 while deferring 140 it called mandatory. That is a Cartesian product mistaken for a search strategy. The identity stays; the obligation is now tiered.",
+    "bucket_key": "{inventory_family}::{search_family}::{term_cluster}",
+    "required_search_families": [
+      "direct-title",
+      "backend-capability",
+      "early-career",
+      "sponsorship-oriented"
+    ],
+    "supplemental_search_families": [
+      "adjacent-software",
+      "employer-ats",
+      "gapfill"
+    ],
+    "term_cluster_basis": "token_subsumption",
+    "subsumption": {
+      "rule": "conjunctive_token_containment",
+      "description": "Board search is conjunctive over significant tokens: a query for `Python Developer` matches adverts containing BOTH tokens. So the results of `Python Backend Developer` are a SUBSET of the results of `Python Developer`, and running the shorter query searches the longer query’s interval too. The relationship is decided mechanically from the normalised token sets, never from a hand-written table that could drift, and never from two queries merely sharing a website.",
+      "requires_same_inventory_family": true,
+      "requires_same_search_family": true,
+      "requires_anchor_completed": true,
+      "anchor_is_shortest_token_set": true,
+      "stated_assumption": "This assumes the broad query’s result list was not truncated before it reached the narrower matches. Boards do cap result lists. The rule is therefore applied only WITHIN one search family, where the terms differ by a token or two rather than by intent, and a truncated broad query is recorded as a source warning that leaves its cluster uncovered."
+    },
+    "advance_on": "a query task that COMPLETED against its declared interval, in a successful completed production run",
+    "never_advances_on": [
+      "failed_query",
+      "failed_run",
+      "partial_run",
+      "unfinished_run",
+      "health_run",
+      "quick_deferred_bucket",
+      "unfunded_bucket",
+      "unexecuted_bucket",
+      "source_family_success_without_this_query"
+    ],
+    "max_bucket_gap_window": "14d",
+    "notes": "A source-family success must never advance every bucket associated with that source: the run searched one query text, not the board. Coverage here describes the planned SEARCH INTERVAL that was queried, never a guarantee that the external site returned everything it holds.",
+    "required_inventory_kinds": [
+      "authenticated-board",
+      "board",
+      "aggregator",
+      "sponsor-board"
+    ],
+    "supplemental_inventory_kinds": [
+      "search-engine",
+      "employer",
+      "ats"
+    ],
+    "inventory_scope_note": "A required coverage bucket exists only on an inventory family that holds its OWN inventory. A search engine indexes other people’s boards, so a site-restricted query through one is a discovery route over inventory this workspace already owes an interval to elsewhere, and giving it its own interval would double-count the same vacancies as coverage. Employer and ATS sources are driven by the bounded watchlist and its separate ceiling, not by a time window. Both remain searched; neither owes an interval of its own.",
+    "tiers": {
+      "description": "Every bucket carries exactly one scheduling tier and the reason it has it. The tier is derived from structure this workspace already declares: which intents a source says are productive, which query template a term came from, and whether the inventory family is primary or secondary. Nothing here invents a candidate preference.",
+      "order": [
+        "critical_fresh",
+        "rolling_recall",
+        "exploratory",
+        "watchlist_or_event_driven"
+      ],
+      "definitions": {
+        "critical_fresh": {
+          "purpose": "The highest-value routes for this profile: the job by its name, the core Python backend work, realistic early-career wording, and sponsorship discovery. Covered on the initial catch-up and revisited every one to three successful daily runs.",
+          "target_revisit_hours": 72,
+          "on_initial_catchup": true,
+          "owes_interval": true
+        },
+        "rolling_recall": {
+          "purpose": "Independent but lower-volume inventory, and secondary capability wording. Genuinely worth searching and not worth a daily slot.",
+          "target_revisit_hours": 168,
+          "on_initial_catchup": false,
+          "owes_interval": true
+        },
+        "exploratory": {
+          "purpose": "Adjacent titles, near-duplicate phrasings and speculative pairings. Useful when budget allows, and owed no interval at all. It can never satisfy or advance critical or rolling coverage.",
+          "target_revisit_hours": null,
+          "on_initial_catchup": false,
+          "owes_interval": false
+        },
+        "watchlist_or_event_driven": {
+          "purpose": "Employer ATS work, governed by the bounded watchlist and its own separate ceiling. It answers to evidence and a cap, not to a clock, so forcing it into a time-based obligation would be a category error.",
+          "target_revisit_hours": null,
+          "on_initial_catchup": true,
+          "owes_interval": false
+        }
+      },
+      "assignment": {
+        "primary_inventory_families": [
+          "indeed",
+          "stepstone",
+          "reed",
+          "dwp"
+        ],
+        "primary_inventory_rationale": "The largest independent UK inventories whose freshness constraint can actually be VERIFIED, which is the condition for owing a 72-hour interval. linkedin was removed on 2026-08-31 after production run scrape-20260831T083115570281: its result cards are Promoted-dominated and only 3 of 16 carried any readable posted age, so a 72-hour claim on that family could never be checked before being credited. This is a reality-based correction to what the schedule PROMISES, not a relaxation of any matching standard. Nothing about job quality, freshness, UK-only scope, seniority or sponsorship changed; LinkedIn stays enabled, stays searched and keeps rolling_recall representatives, so its inventory is still swept and still auditable. Its term clusters remain critically covered on indeed, stepstone, reed and dwp, which demonstrated both working keyword semantics and a verifiable date filter in that same run.",
+        "critical_query_templates": {
+          "direct-title": [
+            "title"
+          ],
+          "backend-capability": [
+            "language-framework",
+            "language-capability"
+          ],
+          "early-career": [
+            "early-career-title"
+          ],
+          "sponsorship-oriented": [
+            "*"
+          ]
+        },
+        "critical_template_rationale": "A framework or core-capability query looks for the work this candidate actually does. A database or integration variant is a near-duplicate of the capability query it sits beside: `Python REST APIs` and `Python Django REST Framework` are refinements of `Python REST API`, not independent intents, so they are recall rather than obligation. Sponsorship is small enough that every cluster is critical.",
+        "critical_capability_terms_max": 3,
+        "critical_capability_terms_rationale": "Three core capability clusters, sized against the 72-hour target rather than picked. At four the critical tier held 54 buckets, which a 30-query daily budget cycles in 96 hours, not 72: the policy would have promised a freshness the schedule could not deliver. The fourth cluster moves to rolling_recall, where a seven-day target is honest. Consolidating before raising a budget is the right order.",
+        "rolling_representatives_per_secondary_family": 1,
+        "rolling_rationale": "A secondary board needs its inventory swept, not every intent crossed with every term: one representative per applicable intent reaches the inventory. On a primary board, the capability refinements beyond the critical four are kept to the two strongest, because a seventh phrasing of `backend` restates an intent already guaranteed rather than adding one.",
+        "requires_declared_productive_family": true,
+        "productive_family_rationale": "A bucket is only required where the source registry already declares that intent productive on that source. `early-career` is not declared productive on StepStone or Adzuna, so requiring it there would be an obligation nobody expects to pay off.",
+        "critical_inventory_overrides": {
+          "sponsorship-oriented": [
+            "sponsor-board"
+          ]
+        },
+        "critical_inventory_override_rationale": "Sponsorship discovery has nowhere else to live: the sponsor boards are the only families that declare that intent productive. Requiring it only on the five primary general boards would have made a critical intent unreachable, so the families that actually hold it are named.",
+        "always_exploratory_search_families": [
+          "adjacent-software"
+        ],
+        "always_exploratory_rationale": "Adjacent titles are a recall widener over roles the direct-title and capability intents already reach by other wording. Useful, and it must never displace a stronger direct or backend route by owing the same interval.",
+        "rolling_secondary_capability_clusters_max": 2,
+        "critical_inventory_overrides_rationale": "RETAINED, BUT NO LONGER DECISIVE (2026-08-31). This entry says where the sponsorship intent LIVES: sponsor-board is the only inventory that declares it productive, and deleting the entry would drop the intent to a single rolling representative and strip a family this candidate genuinely needs. What changed is that the entry no longer settles the TIER. `family_capability` now applies a capability CEILING first: every sponsor-board source declares freshness_support 'unknown', so the family cannot evidence a 72-hour interval and is capped at rolling_recall's seven-day target, which it can keep. Production run scrape-20260831T102144228455 is why: the override alone granted three critical_fresh buckets, and gradsponsor and findsponsorjobs were then observed returning unfiltered inventory whatever was typed, so two of those three buckets were permanently uncoverable and initial catch-up could never finish. An obligation nothing can discharge is not a standard. Query-execution failure is penalised separately and harder: it drops a family to exploratory outright.",
+        "critical_requires_verifiable_freshness": true,
+        "critical_requires_verified_query_execution": true,
+        "required_requires_verified_query_execution": true,
+        "source_capability_rationale": "A coverage bucket names a QUERY on an INVENTORY over a WINDOW. A source that cannot reproducibly execute and display the requested query cannot discharge it, and a source that cannot expose a per-item date cannot prove it covered the window. Both are capability facts read from config/sources.json (freshness_support, query_execution), never a judgement about the vacancies themselves. A family failing either test is demoted to exploratory: still planned, still searched, still recorded, owing no interval.",
+        "unverifiable_freshness_support": [
+          "unknown",
+          "none"
+        ],
+        "verified_query_execution_values": [
+          "verified"
+        ]
+      },
+      "notes": "Tiering does not delete a bucket. Every combination remains an auditable task identity with its own checkpoint and its own window; what changes is how often the schedule owes it. Exploratory work never advances a critical or rolling checkpoint, so a cheap adjacent query can never be mistaken for the coverage it did not provide.",
+      "run_quotas": {
+        "description": "The minimum number of buckets each tier must be allowed to search in a run. Without a rolling floor the critical tier starves it completely: 54 critical buckets against 25 fundable per run means critical is always hungry, so rolling_recall was never searched even once in thirty simulated days while its policy claimed a seven-day target.",
+        "daily": {
+          "rolling_recall": 8
+        },
+        "deep": {
+          "rolling_recall": 8
+        },
+        "catchup": {
+          "rolling_recall": 9
+        },
+        "exhaustive": {
+          "rolling_recall": 24
+        },
+        "gapfill": {
+          "rolling_recall": 2
+        },
+        "quick": {
+          "rolling_recall": 0
+        },
+        "notes": "A quota is a FLOOR on opportunity, not a target to fill: if fewer rolling buckets are due, the budget returns to critical work. quick reserves none because it is explicitly a partial troubleshooting scope. The daily figure is a measured trade-off rather than a guess: at 10 the rolling tier revisits inside its seven-day target but critical slips to 96 hours, and at 8 critical holds its 72-hour target while the slowest rolling bucket reaches 192 hours. Critical freshness is the guarantee worth keeping, so 8 it is, and the rolling overshoot is reported rather than hidden.",
+        "catchup_rationale": "A recovery run keeps a full rolling floor. Cutting it to 5 to buy critical slots was measured and rejected: at a steady 30-hour cadence every run is a recovery run, so the smaller floor starved the rolling tier to 360 hours while critical stayed at 90 either way. The critical shortfall at 30 hours is in slot DISTRIBUTION across families, not in the quota, and trading a real regression for no gain is not a trade."
+      }
+    },
+    "deadlines": {
+      "description": "A target expressed in HOURS has to be scheduled in hours. Phase 4E ordered critical work by raw debt and a fixed rolling quota, so at a steady 30-hour cadence a bucket could reach 120 hours against a 72-hour target while the run still spent slots on rolling work that was nowhere near its own deadline. Slack, not age, is what says which bucket is about to breach.",
+      "urgency_order": [
+        "breached",
+        "at_risk",
+        "due_soon",
+        "comfortable"
+      ],
+      "at_risk_within_hours": 24,
+      "at_risk_rationale": "A bucket whose remaining slack is smaller than the interval to the next normal run will breach before anything can search it again. Those are pulled forward ahead of the rolling quota, which is a floor on opportunity and was never meant to cause an avoidable deadline breach.",
+      "rolling_quota_yields_to_at_risk_critical": true,
+      "supported_cadences_hours": [
+        24,
+        30
+      ],
+      "feasibility_formula": "deadline-safe: max_intervals = floor(target_revisit_hours / cadence_hours); required_unique_slots = ceil(bucket_count / max_intervals). Average capacity (count * cadence / target) is necessary and NOT sufficient with discrete runs.",
+      "feasibility_note": "The critical denominator is DERIVED from this policy by coverage_ledger.required_universe() and must never be restated as a literal here; capacity_feasibility() recomputes slots per run from whatever that count currently is. A 30-hour gap also puts the run into recovery, which carries 36 queries rather than 30, and that is where the extra slots come from: dynamic recovery allocation rather than a permanent daily increase.",
+      "guaranteed_cadence_hours": 24,
+      "measured_performance": {
+        "simulation_version": "phase-4i+capability-ceiling-20260831",
+        "policy_version": "unknown",
+        "measured_against": "tools/search_plan.py build_plan, cold start, deterministic, no live search",
+        "24h": {
+          "runs": 30,
+          "mandatory_covered": "61/61",
+          "skipped_intervals": 0,
+          "never_searched": 0,
+          "critical_worst_hours": 72,
+          "rolling_worst_hours": 168,
+          "service_level": "standard_daily",
+          "critical_meets_standard": true,
+          "rolling_meets_standard": true
+        },
+        "30h": {
+          "runs": 30,
+          "mandatory_covered": "61/61",
+          "skipped_intervals": 0,
+          "never_searched": 0,
+          "critical_worst_hours": 60,
+          "rolling_worst_hours": 150,
+          "service_level": "delayed_daily",
+          "critical_meets_standard": true,
+          "rolling_meets_standard": true,
+          "critical_within_tolerance": true,
+          "rolling_within_tolerance": true,
+          "misses_standard_by_hours": {
+            "critical": 0,
+            "rolling": 0
+          },
+          "critical_note": "Re-measured 2026-08-31 after the source-capability ceiling. Two policy changes have moved this number and neither was a relaxation: linkedin left the primary inventory families (45 -> 36 critical), then the sponsor-board family was capped at rolling_recall for being unable to evidence per-item freshness (36 -> 33). A 30-hour cadence now revisits every critical bucket inside 60 hours and MEETS the strict 72-hour standard, and rolling now lands inside its 168-hour target too. The delayed tolerance stays declared because the CADENCE is still delayed."
+        },
+        "alternating_24_30": {
+          "runs": 30,
+          "mandatory_covered": "61/61",
+          "skipped_intervals": 0,
+          "never_searched": 0,
+          "critical_worst_hours": 54,
+          "rolling_worst_hours": 162,
+          "service_level": "delayed_daily",
+          "critical_meets_standard": true,
+          "rolling_meets_standard": true,
+          "critical_within_tolerance": true,
+          "rolling_within_tolerance": true,
+          "misses_standard_by_hours": {
+            "critical": 0,
+            "rolling": 0
+          }
+        },
+        "one_run_six_hours_late": {
+          "runs": 15,
+          "delayed_interval_hours": 30,
+          "mandatory_covered": "61/61",
+          "skipped_intervals": 0,
+          "never_searched": 0,
+          "critical_worst_hours": 72,
+          "rolling_worst_hours": 150,
+          "service_level": "delayed_daily",
+          "critical_meets_standard": true,
+          "rolling_meets_standard": true,
+          "critical_within_tolerance": true,
+          "rolling_within_tolerance": true,
+          "misses_standard_by_hours": {
+            "critical": 0,
+            "rolling": 0
+          },
+          "note": "Re-measured 2026-08-31 after the source-capability ceiling. With 33 critical buckets the tier carries enough headroom that one six-hour delay no longer pushes the worst critical revisit past 72 hours: it measures exactly 72, meeting the strict standard and sitting well inside the 90-hour delayed tolerance. This is a MEASUREMENT, not a target that was loosened; the strict standard is unchanged."
+        }
+      },
+      "honest_target_statement": "Two service levels, measured separately. STANDARD DAILY, a run interval up to and including 24 hours, meets its strict targets: 72 hours critical and 168 hours rolling, across both 15 and 30 consecutive runs. DELAYED DAILY, an interval above 24 and up to 30 hours, is held to measured tolerances of 90 and 180 hours. Remeasured 2026-08-31 after linkedin was removed from the primary inventory families: with the critical tier at 36 buckets rather than 45, the delayed cadence now revisits critical inside 60 hours and meets the strict 72-hour standard, while rolling still misses its strict target and is reported as a tolerance pass rather than dressed up as the standard being met. Coverage is unaffected at every supported cadence: 64 of 64 mandatory buckets, zero skipped intervals, zero never searched. Capping rolling at its deadline-safe share to protect critical was tried and measured: it made rolling worse at 216 hours and left critical unchanged, so it was reverted.",
+      "service_levels": {
+        "standard_daily": {
+          "run_interval_hours_max": 24,
+          "critical_target_hours": 72,
+          "rolling_target_hours": 168,
+          "kind": "strict standard",
+          "rationale": "The cadence the deadline-safe arithmetic funds and the simulation delivers. The critical and rolling denominators are derived at runtime by coverage_ledger.required_universe(); capacity_feasibility() checks the deadline-safe slots each currently needs. Both are met."
+        },
+        "delayed_daily": {
+          "run_interval_hours_min_exclusive": 24,
+          "run_interval_hours_max": 30,
+          "critical_tolerance_hours": 90,
+          "rolling_tolerance_hours": 180,
+          "kind": "measured tolerance, NOT the strict standard",
+          "rationale": "A run interval above 24 hours cannot be held to a standard derived from a 24-hour interval. At 30 hours only two intervals fit inside a 72-hour target, so the third revisit lands at 90. That is recorded as a measured and supported tolerance rather than dressed up as the standard being met. Coverage itself is unaffected: every supported cadence still reaches 73 of 73 with zero skipped intervals.",
+          "reporting_rule": "A result inside the tolerance is reported as within the DELAYED service level and as missing the strict standard by the measured difference. It is never reported as meeting the 72-hour standard."
+        },
+        "above_30_hours": {
+          "kind": "recovery",
+          "rationale": "Gaps beyond 30 hours keep the existing recovery-window logic: the smallest window that covers the gap, per bucket, with no grace. Absence-induced breaches stay visible, the fourteen-day cap and the uncovered-hours report are unchanged, and no result count or yield may alter an interval or a window."
+        }
+      }
+    }
+  }
+}

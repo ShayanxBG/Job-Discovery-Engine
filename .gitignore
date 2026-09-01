@@ -1,0 +1,52 @@
+# PUBLIC DISTRIBUTION of the Job Discovery Engine.
+#
+# This repository holds the shareable subset only: the tools, configuration,
+# skills, commands and documentation. It carries no candidate data. The private
+# authorities below are ignored explicitly so that a working copy can never
+# commit real personal data by accident, even after you fill them in locally.
+# PACKAGE_MANIFEST.txt describes the shareable subset, and
+# `python tools/package_manifest.py verify` checks it.
+
+# Private candidate authorities. Start from the .example files beside them.
+candidate/profile.md
+candidate/config.json
+candidate/cv-maintenance.md
+
+# Private documents, run state, backups and generated reports
+documents/
+job_scraper/
+backups/
+reports/
+
+# Environment secrets
+.env
+.env.*
+
+# Generated caches and compiled artefacts
+__pycache__/
+*.pyc
+*.docx
+*.pdf
+
+# The user's GLOBAL gitignore may exclude .claude/ entirely, which would silently
+# keep every command, skill and worker definition out of a commit. Those are
+# project authorities: the enforcement lives in them, and a checkout that cannot
+# restore them is not the project. Re-include the directory, then exclude the one
+# file inside it that really is machine-local.
+!.claude/
+!.claude/**
+.claude/settings.local.json
+
+# Transient proposal artefact, superseded on every run
+candidate/config.proposed.json
+
+# Run captures, active-run state and generated output
+job_scraper/runs/
+job_scraper/shortlists/
+job_scraper/cache/
+
+# Regenerable reference snapshot, refreshed from GOV.UK on demand
+job_scraper/reference/
+
+# Historical backup copies, never edited in place
+documents/master/history/

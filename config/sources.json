@@ -1,0 +1,662 @@
+{
+  "schema_version": 2,
+  "description": "Deterministic owner of discovery source identity and behaviour. Source families exist so coverage diversity is measured by real inventory families rather than by nominal site count. This file describes sources only. It never holds candidate preferences, credentials, cookies, account names or private candidate data. Each source also declares which SEARCH families pay off against it and how many result cards are worth inspecting per productive query, so the planner reads those facts rather than a human keeping a prose table in step. Each family also declares a monitoring class, so an omission from a daily plan is a recorded decision rather than an accident.",
+  "vocabularies": {
+    "kind": [
+      "authenticated-board",
+      "board",
+      "aggregator",
+      "employer",
+      "ats",
+      "search-engine",
+      "sponsor-board"
+    ],
+    "freshness_support": [
+      "reliable-filter",
+      "unreliable-filter",
+      "per-item-date",
+      "none",
+      "unknown"
+    ],
+    "query_execution": [
+      "verified",
+      "unverified",
+      "ignores_query"
+    ],
+    "query_execution_meaning": "Whether a requested query is reproducibly EXECUTED, DISPLAYED and VERIFIABLE on this source. `verified` means the rendered page demonstrably reflects the requested query. `unverified` means it could not be confirmed. `ignores_query` means the source was observed returning its unfiltered inventory regardless of the query. Only `verified` may own a mandatory query-specific obligation, because a bucket names a QUERY on an inventory and a source that cannot run the query cannot discharge it."
+  },
+  "families": {
+    "linkedin": {
+      "display_name": "LinkedIn Jobs",
+      "notes": "Authenticated inventory is materially larger than the public/guest view. Never describe public LinkedIn coverage as equivalent.",
+      "monitoring_class": "daily",
+      "queryable": true,
+      "policy_review_after": "2027-02-28"
+    },
+    "indeed": {
+      "display_name": "Indeed UK",
+      "notes": "Authenticated inventory is materially larger than the public view.",
+      "monitoring_class": "daily",
+      "queryable": true,
+      "policy_review_after": "2027-02-28"
+    },
+    "stepstone": {
+      "display_name": "StepStone UK (CWJobs and Totaljobs)",
+      "notes": "CWJobs and Totaljobs run on one StepStone platform and share inventory. Searching both is ONE diversity family, never two.",
+      "monitoring_class": "daily",
+      "queryable": true,
+      "policy_review_after": "2027-02-28"
+    },
+    "reed": {
+      "display_name": "Reed",
+      "notes": "Independent UK board inventory.",
+      "monitoring_class": "daily",
+      "queryable": true,
+      "policy_review_after": "2027-02-28"
+    },
+    "dwp": {
+      "display_name": "DWP Find a Job",
+      "notes": "UK government job service. Independent inventory.",
+      "monitoring_class": "daily",
+      "queryable": true,
+      "policy_review_after": "2027-02-28"
+    },
+    "built-in": {
+      "display_name": "Built In",
+      "notes": "Technology-employer network, London and UK.",
+      "monitoring_class": "rotating",
+      "queryable": true,
+      "monitoring_reason": "Smaller technology-employer network. Real independent inventory, lower daily volume.",
+      "policy_review_after": "2027-02-28"
+    },
+    "welcome-to-the-jungle": {
+      "display_name": "Welcome to the Jungle UK",
+      "notes": "Employer-profile driven listings.",
+      "monitoring_class": "rotating",
+      "queryable": true,
+      "monitoring_reason": "Employer-profile driven listings. Real independent inventory, lower daily volume.",
+      "policy_review_after": "2027-02-28"
+    },
+    "jobserve": {
+      "display_name": "JobServe",
+      "notes": "Independent UK technology board, heavily contract weighted.",
+      "monitoring_class": "rotating",
+      "queryable": true,
+      "monitoring_reason": "Independent UK technology board, heavily contract weighted, so a lower daily hit rate.",
+      "policy_review_after": "2027-02-28"
+    },
+    "technojobs": {
+      "display_name": "Technojobs",
+      "notes": "Independent UK technology board.",
+      "monitoring_class": "rotating",
+      "queryable": true,
+      "monitoring_reason": "Independent UK technology board with lower daily volume.",
+      "policy_review_after": "2027-02-28"
+    },
+    "adzuna": {
+      "display_name": "Adzuna",
+      "notes": "Aggregator. Resolve to the employer or original board posting before saving where possible.",
+      "monitoring_class": "rotating",
+      "queryable": true,
+      "monitoring_reason": "WORKING HYPOTHESIS, not a measurement. Adzuna is an aggregator, so its listings are expected to overlap substantially with Reed, CWJobs, Totaljobs and the employer sites this workspace already searches daily, and an aggregated listing is expected to carry a weaker vacancy identity than the employer or board copy it was drawn from. Neither expectation has been measured here: no production run has yet searched Adzuna, so there is no duplicate rate, no unique-candidate count and no filter-compliance observation in this workspace to appeal to. It is classed `rotating` on that expectation alone, which is why the class carries an empirical review rather than a conclusion. It stays enabled and queryable, and exhaustive mode always reaches it.",
+      "policy_review_after": "2026-09-14",
+      "policy_basis": "hypothesis",
+      "policy_review_trigger": "after 3 successfully completed production runs that searched adzuna",
+      "policy_review_criteria": [
+        "unique eligible candidates per query",
+        "duplicate rate against records already discovered from other sources",
+        "new Direct candidates contributed",
+        "detailed-read efficiency: Direct matches per job description read",
+        "freshness-filter compliance observed on its result cards",
+        "source failures, access cost and any anti-bot friction"
+      ],
+      "policy_review_note": "Whichever comes first: three successful runs that actually searched it, or the date backstop. If the measured duplicate rate is low or its unique contribution is material, promote it to `daily`. If the hypothesis holds, keep it rotating and record the numbers that justified it. Do not restate the hypothesis as a finding until the numbers exist."
+    },
+    "employer": {
+      "display_name": "Employer direct and ATS",
+      "notes": "Highest confidence. An employer careers page and its ATS posting are one inventory family.",
+      "monitoring_class": "daily",
+      "queryable": true,
+      "policy_review_after": "2027-02-28"
+    },
+    "public-web": {
+      "display_name": "Public web search",
+      "notes": "Discovery method rather than an inventory of its own. The resolved target decides the stored source type.",
+      "monitoring_class": "daily",
+      "queryable": true,
+      "policy_review_after": "2027-02-28"
+    },
+    "sponsor-board": {
+      "display_name": "Sponsorship-focused lead boards",
+      "notes": "Lead generators only. They largely re-list the same postings, so they are one inventory family. Never a source of truth for vacancy-specific sponsorship.",
+      "monitoring_class": "rotating",
+      "queryable": true,
+      "monitoring_reason": "Six independent sponsor boards share this ONE registry family label but not their inventory. They rotate so that every board is reached across the cycle rather than the same two being searched forever, and the family is counted once however many of its boards a run touches.",
+      "policy_review_after": "2027-02-28"
+    }
+  },
+  "sources": [
+    {
+      "id": "linkedin",
+      "display_name": "LinkedIn Jobs",
+      "family": "linkedin",
+      "kind": "authenticated-board",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": true,
+      "enabled": true,
+      "freshness_support": "unreliable-filter",
+      "state_source_type": "linkedin",
+      "authenticated_source_type": "authenticated-linkedin",
+      "default_source_confidence": "medium",
+      "authenticated_source_confidence": "high",
+      "rule_aliases": [
+        "LinkedIn"
+      ],
+      "promoted_card_markers": [
+        "Promoted"
+      ],
+      "notes": "Downgraded 2026-08-31 from reliable-filter after production run scrape-20260831T083115570281. TWO separate findings. First, sortBy=DD DESTROYS keyword semantics: 'Python Developer' and 'Integration Developer' returned 17 of 18 identical job ids, and 'Python Django REST Framework' returned Splunk Consultant and Document Review Specialist. Never pass sortBy=DD. Second, WITHOUT that parameter the keyword search works correctly and returns genuinely query-specific results, but the card set is Promoted-dominated: across three verification searches only 3 of 16 cards carried any readable posted age while 12 were badged Promoted, so the Date posted filter cannot be verified per card. Read every card's own posted age, and where it is absent treat freshness as unknown and open the vacancy for its own date before counting it.",
+      "productive_families": [
+        "direct-title",
+        "backend-capability",
+        "adjacent-software",
+        "early-career"
+      ],
+      "inspect_cards_per_query": 30,
+      "query_execution": "verified"
+    },
+    {
+      "id": "indeed",
+      "display_name": "Indeed UK",
+      "family": "indeed",
+      "kind": "authenticated-board",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": true,
+      "enabled": true,
+      "freshness_support": "reliable-filter",
+      "state_source_type": "major-board",
+      "authenticated_source_type": "authenticated-indeed",
+      "default_source_confidence": "medium",
+      "authenticated_source_confidence": "high",
+      "rule_aliases": [
+        "Indeed"
+      ],
+      "notes": "fromage and sort=date are honoured. Stop on Cloudflare or CAPTCHA rather than bypassing it.",
+      "productive_families": [
+        "direct-title",
+        "backend-capability",
+        "early-career"
+      ],
+      "inspect_cards_per_query": 30,
+      "query_execution": "verified"
+    },
+    {
+      "id": "cwjobs",
+      "display_name": "CWJobs",
+      "family": "stepstone",
+      "kind": "board",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": true,
+      "enabled": true,
+      "freshness_support": "unreliable-filter",
+      "state_source_type": "uk-board",
+      "authenticated_source_type": "authenticated-board",
+      "default_source_confidence": "medium",
+      "authenticated_source_confidence": "medium",
+      "rule_aliases": [
+        "CWJobs"
+      ],
+      "promoted_card_markers": [
+        "PREMIUM",
+        "FEATURED"
+      ],
+      "notes": "Observed 2026-08-28: the postedwithin filter does not constrain promoted slots. Cards badged PREMIUM or FEATURED appeared under an active Last 24 hours filter showing 1 week ago and 1 month ago. Read every card posted age individually before counting it toward a freshness window.",
+      "productive_families": [
+        "direct-title",
+        "backend-capability"
+      ],
+      "inspect_cards_per_query": 25,
+      "query_execution": "verified"
+    },
+    {
+      "id": "totaljobs",
+      "display_name": "Totaljobs",
+      "family": "stepstone",
+      "kind": "board",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": true,
+      "enabled": true,
+      "freshness_support": "unreliable-filter",
+      "state_source_type": "uk-board",
+      "authenticated_source_type": "authenticated-board",
+      "default_source_confidence": "medium",
+      "authenticated_source_confidence": "medium",
+      "rule_aliases": [
+        "Totaljobs"
+      ],
+      "promoted_card_markers": [
+        "PREMIUM",
+        "FEATURED"
+      ],
+      "forbidden_panel_markers": [
+        "Suggested based on your CV",
+        "Strong Fit",
+        "Explore jobs that match your experience and skills",
+        "Were these jobs of interest?"
+      ],
+      "prefer_accessibility_tree": true,
+      "notes": "Observed 2026-08-28: the filtered result list can fail to render while unifiedResultlist.js throws React hydration errors. Page text then returns a CV recommendation panel that ignores the requested filter and is mostly off-profile. That panel is NOT the result list and must never be ingested as discovery inventory. Shares the CWJobs promoted-card freshness problem.",
+      "productive_families": [
+        "direct-title",
+        "backend-capability"
+      ],
+      "inspect_cards_per_query": 25,
+      "query_execution": "verified"
+    },
+    {
+      "id": "reed",
+      "display_name": "Reed",
+      "family": "reed",
+      "kind": "board",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": false,
+      "enabled": true,
+      "freshness_support": "per-item-date",
+      "state_source_type": "uk-board",
+      "default_source_confidence": "medium",
+      "rule_aliases": [
+        "Reed"
+      ],
+      "notes": "Independent UK board inventory.",
+      "productive_families": [
+        "direct-title",
+        "backend-capability",
+        "early-career"
+      ],
+      "inspect_cards_per_query": 25,
+      "query_execution": "verified"
+    },
+    {
+      "id": "dwp-find-a-job",
+      "display_name": "DWP Find a Job",
+      "family": "dwp",
+      "kind": "board",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": false,
+      "enabled": true,
+      "freshness_support": "per-item-date",
+      "state_source_type": "uk-board",
+      "default_source_confidence": "medium",
+      "rule_aliases": [
+        "DWP",
+        "Find a Job",
+        "Work Hub",
+        "jobs.service.gov.uk",
+        "findajob.dwp.gov.uk"
+      ],
+      "search_host": "www.jobs.service.gov.uk",
+      "search_url_template": "https://www.jobs.service.gov.uk/jobs/search?keywords={keywords}",
+      "requires_direct_search": true,
+      "not_replaced_by": [
+        "itjobswatch.co.uk"
+      ],
+      "notes": "UK government service, now served as Work Hub at www.jobs.service.gov.uk. SEARCH IT DIRECTLY at search_url_template. The legacy findajob.dwp.gov.uk host is superseded and currently returns 503. Do NOT judge this source's availability from a search-engine `site:` restriction: in the first real run `site:jobs.service.gov.uk` was silently rewritten and returned itjobswatch.co.uk pages, which was wrongly read as the service having moved there. It has not. IT Jobs Watch is a salary-trend aggregator and is NEVER a substitute for this inventory. Verified reachable by direct read-only check on 2026-08-28, returning 635 results for 'python developer' with per-vacancy listings.",
+      "productive_families": [
+        "direct-title",
+        "backend-capability",
+        "early-career"
+      ],
+      "inspect_cards_per_query": 25,
+      "query_execution": "verified"
+    },
+    {
+      "id": "built-in",
+      "display_name": "Built In",
+      "family": "built-in",
+      "kind": "board",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": false,
+      "enabled": true,
+      "freshness_support": "per-item-date",
+      "state_source_type": "uk-board",
+      "default_source_confidence": "medium",
+      "rule_aliases": [
+        "Built In"
+      ],
+      "notes": "Technology-employer network. Often resolvable straight to an employer ATS posting.",
+      "productive_families": [
+        "direct-title",
+        "backend-capability",
+        "early-career"
+      ],
+      "inspect_cards_per_query": 20,
+      "query_execution": "verified"
+    },
+    {
+      "id": "welcome-to-the-jungle",
+      "display_name": "Welcome to the Jungle UK",
+      "family": "welcome-to-the-jungle",
+      "kind": "board",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": false,
+      "enabled": true,
+      "freshness_support": "per-item-date",
+      "state_source_type": "uk-board",
+      "default_source_confidence": "medium",
+      "rule_aliases": [
+        "Welcome to the Jungle"
+      ],
+      "notes": "Employer-profile driven listings.",
+      "productive_families": [
+        "direct-title",
+        "backend-capability",
+        "early-career"
+      ],
+      "inspect_cards_per_query": 20,
+      "query_execution": "verified"
+    },
+    {
+      "id": "jobserve",
+      "display_name": "JobServe",
+      "family": "jobserve",
+      "kind": "board",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": false,
+      "enabled": true,
+      "freshness_support": "per-item-date",
+      "state_source_type": "uk-board",
+      "default_source_confidence": "medium",
+      "rule_aliases": [
+        "JobServe"
+      ],
+      "notes": "Heavily contract weighted. Most results are pre-filtered out by the contract rule. QUERY APPLICATION UNVERIFIED in production run scrape-20260831T102144228455 (2026-08-31): the keyword form submitted but the page reported the unfiltered 20004-job UK total with top results unrelated to the requested query. Until execution can be verified per query it may not own a required query-specific obligation.",
+      "productive_families": [
+        "direct-title",
+        "backend-capability",
+        "early-career"
+      ],
+      "inspect_cards_per_query": 20,
+      "query_execution": "unverified"
+    },
+    {
+      "id": "technojobs",
+      "display_name": "Technojobs",
+      "family": "technojobs",
+      "kind": "board",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": false,
+      "enabled": true,
+      "freshness_support": "per-item-date",
+      "state_source_type": "uk-board",
+      "default_source_confidence": "medium",
+      "rule_aliases": [
+        "Technojobs"
+      ],
+      "notes": "Independent UK technology board.",
+      "productive_families": [
+        "direct-title",
+        "backend-capability",
+        "early-career"
+      ],
+      "inspect_cards_per_query": 20,
+      "query_execution": "verified"
+    },
+    {
+      "id": "adzuna",
+      "display_name": "Adzuna",
+      "family": "adzuna",
+      "kind": "aggregator",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": false,
+      "enabled": true,
+      "freshness_support": "unreliable-filter",
+      "state_source_type": "aggregator",
+      "default_source_confidence": "low",
+      "rule_aliases": [
+        "Adzuna"
+      ],
+      "notes": "Aggregator updated dates can be misleading and must never override an older employer posting date. Resolve to the employer or original board posting before saving where possible.",
+      "productive_families": [
+        "direct-title",
+        "backend-capability"
+      ],
+      "inspect_cards_per_query": 20,
+      "query_execution": "verified"
+    },
+    {
+      "id": "employer-direct",
+      "display_name": "Employer careers page",
+      "family": "employer",
+      "kind": "employer",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": false,
+      "enabled": true,
+      "freshness_support": "per-item-date",
+      "state_source_type": "employer-direct",
+      "default_source_confidence": "high",
+      "rule_aliases": [
+        "employer career",
+        "careers page",
+        "employer careers"
+      ],
+      "notes": "Highest confidence. Preferred target when resolving a board or aggregator lead.",
+      "productive_families": [
+        "employer-ats",
+        "direct-title"
+      ],
+      "inspect_cards_per_query": 25,
+      "query_execution": "verified"
+    },
+    {
+      "id": "employer-ats",
+      "display_name": "Employer ATS posting",
+      "family": "employer",
+      "kind": "ats",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": false,
+      "enabled": true,
+      "freshness_support": "per-item-date",
+      "state_source_type": "employer-ats",
+      "default_source_confidence": "high",
+      "rule_aliases": [
+        "ATS"
+      ],
+      "platforms": [
+        "Greenhouse",
+        "Lever",
+        "Ashby",
+        "Workable",
+        "SmartRecruiters",
+        "Workday",
+        "Oracle Recruiting"
+      ],
+      "notes": "Highest confidence. Same inventory family as the employer careers page. Reject platform landing pages that are not actual vacancy results.",
+      "productive_families": [
+        "employer-ats",
+        "direct-title"
+      ],
+      "inspect_cards_per_query": 25,
+      "query_execution": "verified"
+    },
+    {
+      "id": "public-web",
+      "display_name": "Public web search",
+      "family": "public-web",
+      "kind": "search-engine",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": false,
+      "enabled": true,
+      "freshness_support": "none",
+      "state_source_type": null,
+      "default_source_confidence": "low",
+      "rule_aliases": [
+        "public web",
+        "WebSearch",
+        "public LinkedIn",
+        "public indexing"
+      ],
+      "notes": "A discovery method rather than an inventory of its own. state_source_type is null on purpose: the resolved target decides the stored source type, so a candidate discovered this way must supply an explicit source_type.",
+      "productive_families": [
+        "employer-ats",
+        "adjacent-software",
+        "gapfill"
+      ],
+      "inspect_cards_per_query": 15,
+      "query_execution": "verified"
+    },
+    {
+      "id": "hunt-uk-visa-sponsors",
+      "display_name": "Hunt UK Visa Sponsors",
+      "family": "sponsor-board",
+      "kind": "sponsor-board",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": false,
+      "enabled": true,
+      "freshness_support": "unknown",
+      "state_source_type": "sponsor-board",
+      "default_source_confidence": "low",
+      "rule_aliases": [
+        "Hunt UK Visa Sponsors",
+        "huntukvisasponsors.com"
+      ],
+      "notes": "Lead generator. A sponsorship badge here is a lead, never proof. Query execution verified 2026-08-31: the results heading echoed the requested role and the cards were genuinely query-specific. Freshness remains UNKNOWN and the board self-declares roughly three days of delay, so it stays a supplemental lead source.",
+      "productive_families": [
+        "sponsorship-oriented"
+      ],
+      "inspect_cards_per_query": 15,
+      "query_execution": "verified"
+    },
+    {
+      "id": "skilledjobs",
+      "display_name": "SkilledJobs",
+      "family": "sponsor-board",
+      "kind": "sponsor-board",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": false,
+      "enabled": true,
+      "freshness_support": "unknown",
+      "state_source_type": "sponsor-board",
+      "default_source_confidence": "low",
+      "rule_aliases": [
+        "SkilledJobs",
+        "skilledjobs.com"
+      ],
+      "notes": "Lead generator. Resolve to an employer posting before presenting.",
+      "productive_families": [
+        "sponsorship-oriented"
+      ],
+      "inspect_cards_per_query": 15,
+      "query_execution": "unverified"
+    },
+    {
+      "id": "sponsoredjobs",
+      "display_name": "SponsoredJobs",
+      "family": "sponsor-board",
+      "kind": "sponsor-board",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": false,
+      "enabled": true,
+      "freshness_support": "unknown",
+      "state_source_type": "sponsor-board",
+      "default_source_confidence": "low",
+      "rule_aliases": [
+        "SponsoredJobs",
+        "sponsoredjobs.co.uk"
+      ],
+      "notes": "Lead generator. Resolve to an employer posting before presenting.",
+      "productive_families": [
+        "sponsorship-oriented"
+      ],
+      "inspect_cards_per_query": 15,
+      "query_execution": "unverified"
+    },
+    {
+      "id": "findsponsorjobs",
+      "display_name": "FindSponsorJobs",
+      "family": "sponsor-board",
+      "kind": "sponsor-board",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": false,
+      "enabled": true,
+      "freshness_support": "unknown",
+      "state_source_type": "sponsor-board",
+      "default_source_confidence": "low",
+      "rule_aliases": [
+        "FindSponsorJobs",
+        "findsponsorjobs.co.uk"
+      ],
+      "notes": "Lead generator. Resolve to an employer posting before presenting. QUERY EXECUTION FAILURE observed in production run scrape-20260831T102144228455 (2026-08-31): ?q= was ignored and the in-page keyword box returned the identical unfiltered 11678-role list, sales and account-management dominated and unrelated to the requested Python Developer query. Supplemental lead source only; it can never own a query-specific obligation.",
+      "productive_families": [
+        "sponsorship-oriented"
+      ],
+      "inspect_cards_per_query": 15,
+      "query_execution": "ignores_query"
+    },
+    {
+      "id": "gradsponsor",
+      "display_name": "GradSponsor",
+      "family": "sponsor-board",
+      "kind": "sponsor-board",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": false,
+      "enabled": true,
+      "freshness_support": "unknown",
+      "state_source_type": "sponsor-board",
+      "default_source_confidence": "low",
+      "rule_aliases": [
+        "GradSponsor",
+        "gradsponsor.co.uk"
+      ],
+      "notes": "Lead generator. Resolve to an employer posting before presenting. QUERY EXECUTION FAILURE observed in production run scrape-20260831T102144228455 (2026-08-31): ?q= was ignored and the in-page keyword box returned the identical unfiltered 3460-job list, healthcare dominated and unrelated to the requested Backend Developer query. Supplemental lead source only; it can never own a query-specific obligation.",
+      "productive_families": [
+        "sponsorship-oriented"
+      ],
+      "inspect_cards_per_query": 15,
+      "query_execution": "ignores_query"
+    },
+    {
+      "id": "jobsponsor",
+      "display_name": "Jobsponsor",
+      "family": "sponsor-board",
+      "kind": "sponsor-board",
+      "requires_authenticated_browser": false,
+      "prefers_authenticated_browser": false,
+      "enabled": true,
+      "freshness_support": "unknown",
+      "state_source_type": "sponsor-board",
+      "default_source_confidence": "low",
+      "rule_aliases": [
+        "Jobsponsor",
+        "jobsponsor.uk"
+      ],
+      "notes": "Lead generator, accessible only intermittently.",
+      "productive_families": [
+        "sponsorship-oriented"
+      ],
+      "inspect_cards_per_query": 15,
+      "query_execution": "unverified"
+    }
+  ],
+  "family_coverage_policy": {
+    "description": "Which inventory families an ordinary run must reach, which rotate, and which are deliberately out of scope. An omission has to be a decision with a reason and a review date. A family quietly missing from every plan looks identical to a family nobody thought about.",
+    "classes": {
+      "daily": "Searched on every ordinary run.",
+      "rotating": "Searched on a documented rolling cycle, not every day.",
+      "exhaustive": "Reached only by an explicitly requested wide sweep.",
+      "excluded": "Deliberately not queried. Excluded from every denominator."
+    },
+    "rotating_cycle_length": 3,
+    "advance_on": "successful_completed_run",
+    "exhaustive_must_cover": [
+      "daily",
+      "rotating",
+      "exhaustive"
+    ],
+    "excluded_from_denominator": [
+      "excluded"
+    ],
+    "overdue_outranks_optional_domain_queries": true,
+    "notes": "Exhaustive mode must reach every enabled, queryable family whose class is not `excluded`; the validator asserts 100 per cent against that denominator. A daily run reaches the daily families plus the rotating families due this cycle, and its plan lists what it omitted and why. Coverage is counted by FAMILY: six sponsor boards inside one family are one family covered, never six, because counting them separately would inflate the number without searching more inventory. A failed or partial run does not advance the cycle, because the families it was supposed to reach were not reached. A rotating family whose own last successful coverage is older than force_due_after_hours becomes due IMMEDIATELY, whatever the cycle position says. Without that override the cycle counts RUNS while the cap counts HOURS, so a workspace run weekly would let a three-run family wait twenty-one days against a fourteen-day cap and lose a week of inventory that nothing could recover. The override is set well below the cap so the pull-forward happens before anything is lost rather than after.",
+    "force_due_after_hours": 168
+  }
+}
