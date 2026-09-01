@@ -145,11 +145,11 @@ The current local workspace uses:
 - `job_scraper/reference/`
 - `candidate/config.json`
 
-These paths all hold private data, and they are NOT all gitignored. That is deliberate. `candidate/profile.md`, `candidate/config.json`, `candidate/cv-maintenance.md`, both files under `documents/master/`, and the `job_scraper/` state files (`seen_jobs.json`, `suppression.json`, `employers.json`, `sponsorship_evidence.json`, `watchlist.json`) are TRACKED in this strictly local Git repository, so a bad edit to an authority can be recovered. A checkpoint that excluded the authorities would not protect the work it exists to protect.
+These paths all hold private data, and in this distribution every one of them is gitignored. `candidate/profile.md`, `candidate/config.json`, `candidate/cv-maintenance.md`, both files under `documents/master/`, and the `job_scraper/` state files (`seen_jobs.json`, `suppression.json`, `employers.json`, `sponsorship_evidence.json`, `watchlist.json`) are named in `.gitignore`, literally or through a parent directory rule, so a working copy cannot commit real data. The private working repository this was derived from TRACKS those authorities deliberately, so a bad edit to one can be recovered; a checkpoint that excluded the exact files an edit touches would not protect the work it exists to protect.
 
-The rest are gitignored: `job_scraper/runs/`, `job_scraper/shortlists/`, `job_scraper/cache/`, `job_scraper/reference/`, `reports/`, `backups/`, `documents/master/history/`, `candidate/config.proposed.json` and `.claude/settings.local.json`.
+The runtime and generated paths are gitignored here as well: `job_scraper/runs/`, `job_scraper/shortlists/`, `job_scraper/cache/`, `job_scraper/reference/`, `reports/`, `backups/`, `documents/master/history/`, `candidate/config.proposed.json` and `.claude/settings.local.json`.
 
-The repository has NO remote and must not gain one casually. Because the authorities are tracked, this history cannot be published as it stands. See **Privacy and GitHub** below before sharing anything.
+This distribution is published, and its history carries no candidate data. The PRIVATE working repository is the one that must not gain a remote casually: because it tracks the authorities, its history cannot be published as it stands. See **Privacy and GitHub** below.
 
 `config/sources.json`, `config/search_strategy.json` and `config/matching_policy.json` are deliberately NOT private. They describe discovery sources, search methods and evaluation policy only, and hold no credentials, cookies, account names or candidate data.
 
@@ -705,17 +705,17 @@ Copy the `.example` templates in `candidate/` to your own files and fill them in
 
 ## Privacy and GitHub
 
-This repository is a strictly LOCAL recovery checkpoint. It has no remote, and it must not gain one without a deliberate decision.
+This is the PUBLIC distribution. The private working repository it was derived from is a strictly local recovery checkpoint with no remote, which deliberately TRACKS the candidate authorities so a bad edit to one can be recovered; that history cannot be published as it stands, and this copy is not it.
 
-The private candidate authorities are tracked here on purpose: `candidate/profile.md`, `candidate/config.json`, `candidate/cv-maintenance.md`, `documents/master/cv.pdf`, `documents/master/cv.json`, and the `job_scraper/` state files. They are the files a mistake is most expensive in, and a checkpoint that excluded them would not protect the work it exists to protect. Run captures, shortlist snapshots, the job-description cache, the regenerable sponsor snapshot, generated reports, backups and local Claude permission state ARE gitignored.
+No candidate authority is present here: `candidate/profile.md`, `candidate/config.json`, `candidate/cv-maintenance.md`, `documents/master/cv.pdf`, `documents/master/cv.json` and the `job_scraper/` state files are all excluded. `candidate/` ships `.example` templates instead, and `.gitignore` names every private path, literally or through its parent directory, so a working copy cannot commit real data once you fill them in. Run captures, shortlist snapshots, the job-description cache, the regenerable sponsor snapshot, generated reports, backups and local Claude permission state ARE gitignored too.
 
-The consequence is that this history cannot be published as it stands. Before adding any remote, either strip those paths from history or start a fresh repository from a sanitised export. Always inspect `git status` and the repository history before publishing anything.
+`tools/package_manifest.py` DERIVES the shareable set from an allowlist rather than listing it by hand, so a new tool joins automatically and a private authority cannot, and `verify` proves every path, digest and exclusion. `.gitattributes` pins byte-exact checkouts so those digests hold on every platform. Inspect `git status` before committing anything of your own.
 
 ### A shareable archive
 
-A copy of this project intended for anyone else must exclude at minimum:
+This distribution is the result of applying that exclusion list. A copy of the private project intended for anyone else must exclude at minimum:
 
-- `.git/` (it carries the private authorities in its history)
+- `.git/` (the private working repository's history carries the authorities, which is why this distribution was published as a fresh history rather than a filtered one)
 - `.claude/settings.local.json`
 - `backups/`
 - `reports/`
