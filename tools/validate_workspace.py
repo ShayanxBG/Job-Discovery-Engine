@@ -4865,8 +4865,14 @@ if '--deep' in sys.argv:
     # ---- C. Commercial experience is a dated range that can go stale.
     if _live_cal:
         _exp=_live_cal['seniority']['commercial_experience']
-        check(_exp['minimum_months']==21 and _exp['maximum_months']==22,
-              f"the initial range is 21 to 22 months (got {_exp})")
+        _profile_text=text(ROOT/'candidate/profile.md')
+        # Assert FAITHFULNESS to the profile, never the literal months. The figure
+        # is the candidate's own and has one home; a copy of it in a publishable
+        # test is both a privacy leak and a second home that can drift.
+        _stated=cand_cfg.derive_commercial_experience(_profile_text)
+        check(bool(_stated) and _exp['minimum_months']==_stated['minimum_months']
+              and _exp['maximum_months']==_stated['maximum_months'],
+              'the stored range is exactly what the profile states, not a rounded, extrapolated or stale copy')
         check(_live_cal['derived_from']['experience_observed_at']=='2026-08-29',
               'observed on 29 August 2026, read from the profile rather than stamped from a clock')
         check(_exp['ongoing_role'] is True,
@@ -4879,7 +4885,6 @@ if '--deep' in sys.argv:
         check(any(x['problem']=='minimum_months_exceeds_maximum_months'
                   for x in cand_cfg.structure_problems(_reversed)),
               'and a reversed pair is refused at the validation boundary')
-        _profile_text=text(ROOT/'candidate/profile.md')
         check('not commercial software development' in _profile_text,
               'a non-software role is named in the profile and excluded from the total')
         check('month granularity' in _profile_text and 'no exact start day' in _profile_text,

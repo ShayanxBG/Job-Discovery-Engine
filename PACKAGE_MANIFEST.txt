@@ -11,7 +11,7 @@ a8b8e265c963218147fc620442b63c47d6ba8afe64cb635dd57984b05d1ea629  ./.claude/comm
 fd17fde66c67a8c7ca9593b3753d2bb5848ba82dc8878152a8a6a5c09707d93d  ./.claude/settings.json
 b93de1598d2edf46f1b2bb3b8a932634ba3ede6b9ff0c1af7e5576c850044111  ./.claude/skills/humanizer/SKILL.md
 ef7509bd540140d487585b86e918f8c2322efcf57e2ffca190da05ad5dec98d2  ./.claude/skills/job-matcher/SKILL.md
-6a22fbf54b3de959261307731b764b318ebdbdda2305194b325af5a5dc34b463  ./.claude/skills/job-matcher/job-screening.md
+9e371f14baaed678c01a4db8ce1770cab040231ea2d72e58b0ec402dcc50960f  ./.claude/skills/job-matcher/job-screening.md
 9756b7356bf27d437f5d09e258c049cde59093f02a48097348d73e3af0da78e3  ./.claude/skills/job-matcher/web-research.md
 8fa84ecbc107f00a3ebd68da62735339e4ac4a9a073a705ea682a3a7cd4abb86  ./.claude/skills/job-matcher/writing-style.md
 58b2090384727d9e973871254bab9eae568b2665e2b3d9082c8308f3cfa78799  ./.claude/skills/karpathy-guidelines/SKILL.md
@@ -23,9 +23,9 @@ a75c1d1e0d84024330e18e9ee37b5d9a2134fb0ade8d6cfbd91ce71e1bf46917  ./.claude/skil
 30cab2ea147b04e2a9672bab9b651737160f0ee3b6c67a1d222eb216d0004483  ./.claude/skills/scrape/references/vacancy-processing.md
 8692ed2c82b63b1eeb53c32ea29186f55c6d5a9adbfd076780b5163f735a9d00  ./.claude/skills/scrape/search-queries.md
 2ea6a8801d8ece65fe9a375a18bbffab88f9930a37e3d779c7eae2860461e27f  ./.gitignore
-76ea5a3a2627ad8cbf0a1995553464e958e45866ae9b914360456f6c9dd09b21  ./CHANGELOG.md
+c2a42c1d3771a9f640fcb67ab02b9e60758dd7592f842cad2fd0f44da500f338  ./CHANGELOG.md
 59b631017396574bc60ddf50debb718cef06784fad4e1cd72411005233c9cb0d  ./CLAUDE.md
-4a14481a525454e8e481d7ae8d4f87d8f1b40075339258df457e0c527590325a  ./README.md
+161b950aa5e4edc7a6479a5acd64e9e6cb0bb87acb6e4cba55e53ad3556b6b6d  ./README.md
 accbf0accb87b7b905dd7ee0c7013075f0453637acf354ddae6fc0e4d8282e8e  ./UPSTREAM_LICENSE
 9f1fb07535d4c564ea68f8263447bbb6f4d17a66d266b25a1c207973a66074d1  ./UPSTREAM_NOTICE.md
 cd9955148d82c7fc3ea7a01b471885670358d24a83a738bfb3331a533542b8ba  ./candidate/config.example.json
@@ -65,11 +65,11 @@ dd02191b588ae2f8ea8407c1b483fbb16745015aa5e55be62730b3bb6316b416  ./tools/run_me
 3c930b519d521b18b75dd2f5e329c9ca58c6749f8e25197a7360ec0175bf1694  ./tools/search_rotation.py
 cb37883cc315db417d27e04bf2891eacb544ef19c2bde50fad99dd7ba7eb79d0  ./tools/search_strategy.py
 ae642bb69469f94510f1677f57fcad2ebd240abd9ef0f5513a16fa64e865a789  ./tools/search_window.py
-a6e6b72d7574009a31b62328306be5f36067a5fd3e63a26f7aeaf5f0728d3d5a  ./tools/shortlist.py
+3ffeb10eb3d75a32c0065ce19a9c0b295f750717cf99cce2397cd10dda6d64fd  ./tools/shortlist.py
 6e89294f9a4ceeeee5716abd1709b9305495cd2f97989990f840bd0576a490b8  ./tools/sources.py
 59736dd9a8b536421d8c84856f4094978c21e999fb477a9022ff7199baa79f44  ./tools/sponsor_register.py
 0a5f03d13cd4109530b9ae236fea369054f677f6cc486c874058ea67e7fa7735  ./tools/sponsorship_evidence.py
 c32ecf56d02354b1fb1cfd68f546acef1af0a1aa60033136a4db88f0b7a5ec4e  ./tools/suppression.py
 60cd2699de9ca5504089b941b6bd8717d1914d6295db0fcb48e38c102021cc02  ./tools/url_safety.py
-511fb9501e736700edca5290fc0418f41a1904b8d10eaf8522047b2fd7dff1b9  ./tools/validate_workspace.py
+5b047a5de7d116eece3852cad9d26d2f7cdf996181ddb605e8d790af51bb4ac0  ./tools/validate_workspace.py
 3e5c9f684e073988035f1bafdb4bd24443a538991b9897b93077e97164c56928  ./tools/watchlist.py

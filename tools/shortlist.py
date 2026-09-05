@@ -30,12 +30,12 @@ STATE = ROOT / 'job_scraper' / 'seen_jobs.json'
 SNAPSHOT_DIR = ROOT / 'job_scraper' / 'shortlists'
 SCHEMA_VERSION = 1
 
-# Score bands, matching .claude/skills/job-matcher/job-screening.md exactly.
-# Exceptional is represented separately from Strong so a 90+ role is never
-# reported under an 80-89 heading.
-# `borderline` is the 65 to 69 pilot review band. It sits between `viable` and
-# `below` so a role in the range this workspace is least sure about stays in
-# front of the human instead of disappearing under a single hard line at 70.
+# Band IDS only. Every RANGE comes from config/matching_policy.json, because a
+# number restated here is a second home that will drift, and once did.
+# Exceptional is reported separately from Strong so a top-band role never
+# appears under the band below it. `borderline` sits between `viable` and
+# `below` so the roles this workspace is least sure about stay in front of the
+# human rather than disappearing under a single hard cut-off.
 BANDS = ('exceptional', 'strong', 'viable', 'borderline', 'verification', 'agency',
          'below', 'other')
 

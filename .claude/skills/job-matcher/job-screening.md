@@ -105,7 +105,7 @@ A stated preference and a stated minimum are different facts:
 
 ## Experience-year calibration
 
-The candidate has approximately 21 to 22 months of commercial software development as of 29 August 2026. The thresholds below are calibrated against that and are deliberately generous relative to it, because an advert's stated minimum is a filter the employer wrote, not a measurement of who can do the job.
+The candidate's confirmed commercial-experience total has ONE home, `candidate/profile.md`, and reaches matching through the derived `candidate/config.json`. Read it from there; never restate it here, because a second copy is a copy that will drift. The thresholds below are calibrated against that total and are deliberately generous relative to it, because an advert's stated minimum is a filter the employer wrote, not a measurement of who can do the job.
 
 - 5+ years hard minimum: drop. Clearly out of scope when the requirement is genuine.
 - 4+ years hard minimum: drop. This is the INCLUSIVE hard threshold: a stated hard minimum of exactly four blocks, and it fires only on an explicit, mandatory, employer-stated minimum proved against canonical evidence.

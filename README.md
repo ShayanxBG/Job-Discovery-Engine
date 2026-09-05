@@ -267,24 +267,25 @@ Direct Matches use a 100-point model:
 - Salary/contract/work pattern: 10
 - Company/domain environment: 10
 
-Current interpretation:
+Bands, read from `config/matching_policy.json`:
 
-- 90-100: Exceptional Match
-- 80-89: Strong Match, and the default full-tailoring threshold
-- 70-79: Viable Match
-- 65-69: Borderline Review, kept visible for human review during the pilot
-- below 65: Below Threshold, deprioritised but never deleted
+- 75-100: Exceptional Match
+- 66-74: Strong Match, and the default full-tailoring threshold
+- 58-65: Viable Match
+- 54-57: Borderline Review, kept visible for a human to look at
+- below 54: Below Threshold, deprioritised but never deleted
 
-The boundaries are a pilot calibration pending production outcomes and do not predict interviews.
-- hard blockers override the score
+Those thresholds are derived rather than chosen. A component backed by real but incomplete evidence is capped at three quarters of its maximum, so a good advert reaches technical fit at 40 plus every other component at its partial ceiling: 40+11+18+7+7 = 83. Each boundary is the pre-production figure scaled by 83/100 and rounded, which moved 90 to 75, 80 to 66, 70 to 58 and 65 to 54.
 
-Location inside the UK is not a score penalty in the current profile.
+100 is still reachable in principle, because a component the advert states outright is not capped at all. Almost no advert states everything. Across 988 ranked direct roles none had all five components known, none had more than two of the four non-technical components known, and the best score seen was 79. That is why 83 is the denominator and not an assumption.
+
+A score predicts nothing about interviews, and a hard blocker overrides it outright. Location inside the UK costs nothing under any component.
 
 ## Shortlist history
 
 Every successful `/rank` run creates an immutable snapshot under `job_scraper/shortlists/`. Multiple runs on the same day are preserved separately and date lookup selects the latest run for that day.
 
-Shortlists report Exceptional, Strong and Viable as separate sections. A ranking run that scored only part of the matching set records that it was partial, so a truncated run is never presented as complete coverage.
+Shortlists report Exceptional, Strong, Viable and Borderline Review as separate sections, each headed with the range the live policy currently assigns it. A ranking run that scored only part of the matching set records that it was partial, so a truncated run is never presented as complete coverage.
 
 Closing PowerShell or restarting Claude Code does not lose shortlist history.
 
@@ -488,11 +489,11 @@ Capacity feasibility is arithmetic that validation enforces:
 critical_buckets * cadence_hours / target_revisit_hours <= critical_slots_per_run
 ```
 
-At 24 hours: 45 buckets need 15 slots, 18 are available. A policy promising a freshness its budget cannot deliver is refused.
+`capacity_feasibility()` recomputes the slots per run from whatever the count currently is, and refuses a policy promising a freshness its own budget cannot deliver. The figures below were measured when the critical tier was larger than it is now, so they show the shape of the calculation rather than today's numbers.
 
 **Two service levels, measured and reported separately.** The strict standard is STANDARD DAILY: a run interval up to and including 24 hours, holding 72 hours critical and 168 hours rolling. An interval above 24 and up to 30 hours is DELAYED DAILY, held to a measured tolerance of 90 hours critical and 180 hours rolling. A target derived from a 24-hour interval is not one a 30-hour schedule was ever going to meet, because only two intervals fit inside 72 hours at that cadence. A tolerance pass is reported as a tolerance pass, never as the strict standard being met, and the shortfall is reported in hours. Gaps above 30 hours stay on the recovery-window logic.
 
-Both cadences are supported and neither is labelled degraded. The earlier degraded label described a slot-distribution defect between families, and global allocation fixed the defect rather than accepting it. The service levels live in `config/search_strategy.json` under `deadlines.service_levels`.
+Both cadences are supported and neither is labelled degraded. The earlier degraded label described a slot-distribution defect between families, and global allocation fixed the defect rather than accepting it. The service levels live in `config/search_strategy.json` under `coverage_policy.deadlines`.
 
 ### Service tiers: a bucket existing is not a promise to search it daily
 
@@ -500,16 +501,23 @@ Phase 4D classified all 173 term-by-source combinations as equally required. A d
 
 Every bucket now carries exactly one tier and the reason it has it, derived from structure the workspace already declares: whether the source registry says that intent is productive there, which query template the term came from, and whether the inventory family is primary or secondary.
 
-| Tier | Buckets | Owes an interval | Target revisit |
-| --- | --- | --- | --- |
-| `critical_fresh` | 45 | yes | 72 hours |
-| `rolling_recall` | 28 | yes | 7 days |
-| `exploratory` | 144 | no | none |
-| `watchlist_or_event_driven` | 6 | no | its own ceiling |
+| Tier | Owes an interval | Target revisit |
+| --- | --- | --- |
+| `critical_fresh` | yes | 72 hours |
+| `rolling_recall` | yes | 7 days |
+| `exploratory` | no | none |
+| `watchlist_or_event_driven` | no | its own ceiling |
 
-`critical_fresh` holds 15 direct-title, 15 core backend-capability, 12 early-career and 3 sponsorship buckets on the primary inventory families. `rolling_recall` reaches every secondary board through one representative route per applicable intent, plus the capability refinements beyond the critical three. Everything else is exploratory: still executed when budget allows, still recorded, and structurally unable to advance a checkpoint it does not own.
+The counts are deliberately not printed here. A source-capability change moves every one of them, and three source policy changes have moved them since this section was written. Ask the tool:
 
-**73 buckets owe an interval**, down from 173, over the eleven inventory-owning families. A search engine indexes other people's boards, so it earns no bucket of its own, and employer/ATS sources answer to the watchlist ceiling rather than to a clock; both are still searched.
+```text
+python tools/coverage_ledger.py denominators
+python tools/coverage_ledger.py buckets
+```
+
+`critical_fresh` covers direct-title, core backend-capability, early-career and sponsorship buckets on the primary inventory families. `rolling_recall` reaches every secondary board through one representative route per applicable intent, plus the capability refinements beyond the critical ones. Everything else is exploratory: still executed when budget allows, still recorded, and structurally unable to advance a checkpoint it does not own.
+
+Only a minority of buckets owe an interval at all, down from a scheme where all 173 did. A search engine indexes other people's boards, so it earns no bucket of its own, and employer/ATS sources answer to the watchlist ceiling rather than to a clock; both are still searched.
 
 Measured revisit intervals under consecutive standard daily operation, all four critical intent classes:
 
@@ -527,7 +535,7 @@ Nothing was reduced to make a count look better. Each reclassification is a reco
 
 A rotating family overdue by TIME is pulled forward whatever its cycle position says. The cycle counts runs and the cap counts hours: run weekly, a three-run family would wait twenty-one days against a fourteen-day cap and the cycle would report itself on schedule the whole time. `force_due_after_hours` is 168, well below the 336-hour cap, so the pull-forward happens before anything is lost.
 
-Measured across simulated runs, counting only intervals permanently skipped between two coverages. These are the recorded figures in `config/search_strategy.json` under `deadlines.measured_performance`, which `--deep` re-derives from `tools/search_plan.py` rather than trusting:
+Measured across simulated runs, counting only intervals permanently skipped between two coverages. These were recorded under `coverage_policy.deadlines` in `config/search_strategy.json` and re-derived from `tools/search_plan.py` by `--deep` rather than trusted. The mandatory denominator has shrunk since, so the covered counts below are the ones measured then:
 
 | Schedule | Runs | Mandatory covered | Interval lost | Critical worst | Rolling worst | Service level |
 | --- | --- | --- | --- | --- | --- | --- |
