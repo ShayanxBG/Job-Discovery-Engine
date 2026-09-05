@@ -11053,16 +11053,46 @@ _skill_txt = (ROOT / '.claude/skills/scrape/SKILL.md').read_text(encoding='utf-8
 check('coverage_ledger.py denominators' in _skill_txt,
       'the scrape skill asks the tool for the critical denominator')
 import re as _f83re
+_TIER_NAMES = ('critical_fresh', 'rolling_recall', 'exploratory',
+               'watchlist_or_event_driven')
+# The three shapes these counts have actually been written in. The first is the
+# original guard; the other two are the ones that got past it into a published
+# README.
+_COUNT_SHAPES = (
+    _f83re.compile(r'\b\d+\s+of\s+\d+\s+critical\b'),
+    _f83re.compile(r'\b\d+\s+buckets?\s+owes?\b', _f83re.I),
+    _f83re.compile(r'\b(?:critical|rolling)\s+tier\s+\w+\s+\d+\b', _f83re.I),
+)
+
+
+def _states_a_tier_count(line):
+    """True when the line asserts a bucket COUNT rather than asking the tool.
+
+    A markdown row whose first cell NAMES a tier and whose other cells hold a
+    bare integer is the table form. `72 hours` is not a bare integer, so the
+    target-revisit column stays legal.
+    """
+    stripped = line.strip()
+    if stripped.startswith('|') and stripped.endswith('|'):
+        cells = [c.strip().strip('`*') for c in stripped.strip('|').split('|')]
+        if cells and cells[0] in _TIER_NAMES:
+            return any(_f83re.fullmatch(r'\d+', c) for c in cells[1:])
+    return any(p.search(line) for p in _COUNT_SHAPES)
+
+
+# Every instruction file, not a hand-listed four: a file added later is guarded
+# by the shape of the rule rather than by somebody remembering to list it.
+_INSTRUCTION_FILES = [ROOT / 'CLAUDE.md', ROOT / 'README.md'] + \
+    sorted((ROOT / '.claude').rglob('*.md'))
 _stale = []
-for _rel in ('.claude/skills/scrape/SKILL.md',
-             '.claude/skills/scrape/references/run-accounting.md',
-             'CLAUDE.md', 'README.md'):
-    for _ln, _line in enumerate((ROOT / _rel).read_text(encoding='utf-8').splitlines(), 1):
-        if _f83re.search(r'\b\d+\s+of\s+\d+\s+critical\b', _line) and \
-                'HISTORICAL' not in _line.upper():
+for _path in _INSTRUCTION_FILES:
+    _rel = _path.relative_to(ROOT).as_posix()
+    for _ln, _line in enumerate(_path.read_text(encoding='utf-8').splitlines(), 1):
+        if _states_a_tier_count(_line) and 'HISTORICAL' not in _line.upper():
             _stale.append(f'{_rel}:{_ln}')
 check(not _stale,
-      'and no instruction file states a critical count as current authority',
+      f'and none of the {len(_INSTRUCTION_FILES)} instruction files states a bucket '
+      f'count as current authority',
       ', '.join(_stale))
 
 # ---- Browser integrity: a hidden placeholder can never own a visible card.
