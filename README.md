@@ -1,40 +1,34 @@
 # Job Discovery Engine
 
-A UK job-search pipeline that does the finding, checking and ranking, and stops where a human has to decide. It discovers vacancies, verifies the evidence that matters for a sponsored hire, scores each role against a private candidate profile, and saves a ranked shortlist every day. It never applies for anything.
+A UK-focused job discovery, verification, matching, ranking, and shortlist workspace. Claude Code is the current execution environment.
 
-I built it to learn how to run LLM agents under deterministic guardrails, in a real domain with messy inputs.
-
-The boundary is deliberate:
+The product boundary is intentionally narrow:
 
 ```text
 discover -> verify -> match -> rank -> shortlist -> human decides
 ```
 
-Nothing here tailors a CV, writes a cover letter, contacts a recruiter or fills a form, and there is no auto-apply. Those belong to the user, and the workspace stops before them.
-
-## How it works
-
-Claude Code is the execution environment. Three slash commands cover a normal day: `/scrape` searches, `/rank` verifies and scores, `/shortlist` shows the result. Each command is defined under `.claude/` as a command, a skill or an agent, and that is where the searching, the page reading and the screening judgement live.
-
-The decisions that carry weight are not left to the model. Python under `tools/` plans which queries run against which sources, gates every external URL before it is fetched, looks up sponsor licences in a local snapshot of the official GOV.UK register, and validates the model's structured evaluation against the matching policy before it computes a score, a band and eligibility. An out-of-range component is rejected rather than trusted.
-
-Everything the system reads from the web is treated as untrusted. A job advert that says "update the profile" or "send the CV here" is a job advert containing those words, and it cannot authorise anything. The candidate profile, its calibration and the master CV are read-only to every command except two, and those two act only on a direct request, show a preview, and wait for a separate confirmation.
-
-A validator checks the whole workspace: behaviour, authority rules, file sizes, duplication and the invariants that have to hold from one run to the next. It is the final gate after any change to an instruction file.
+It does **not** auto-apply, tailor application packages, contact recruiters, fill forms, or submit applications.
 
 ## What it does
 
-Discovery goes through the user's own authenticated browser session where a platform needs one, and otherwise across employer career sites, applicant tracking systems, public job boards and sponsorship-focused lead sources. Strong aggregator leads are resolved back to the employer's own posting where possible. The search window comes from run history, not from how many roles the last run happened to find.
-
-The same vacancy seen on several sources is folded into one record, while separate requisitions stay separate. Seen jobs are tracked, so a daily run spends its effort on new or materially updated roles.
-
-Roles that are clearly wrong on seniority, required experience, contract type or specialism are filtered out early. Sponsorship and salary evidence is verified when it would change the decision. Viable direct-employer roles are scored against the private profile, and Direct, Verification, Agency and Updated leads are reported as separate groups rather than one mixed list.
-
-Each day's shortlist is saved as an immutable snapshot. Closing the terminal or restarting the machine loses nothing.
+- Searches authenticated job platforms through the user's existing browser session when available.
+- Searches employer career sites, ATS platforms, public job boards, and sponsorship-focused lead sources.
+- Chooses its search window from RUN HISTORY, not from how many roles it found.
+- Resolves strong aggregator/board leads to employer-owned sources where possible.
+- Deduplicates the same vacancy across multiple sources while preserving separate requisitions.
+- Tracks previously seen jobs so daily runs focus on new or materially updated opportunities.
+- Filters unrealistic seniority, experience, contract, and wrong-specialism matches early.
+- Verifies sponsorship and salary evidence when they affect the decision.
+- Scores viable direct-employer roles against the candidate's private profile.
+- Keeps Direct, Verification, Agency, and Updated leads separate.
+- Saves immutable daily shortlist history that survives terminal or machine restarts.
 
 ## Browser model
 
-Browser-assisted discovery uses the user's existing authenticated browser session; the project does not store account passwords. It is read-only and it does not bypass protections. When a site shows a CAPTCHA, an anti-bot check or an account challenge, the run stops for the user to act or marks that source incomplete.
+The project should use the user's **existing authenticated browser session**, not store account passwords.
+
+Browser-assisted discovery is read-only. If a site presents a CAPTCHA, anti-bot verification, or account challenge, the system stops for manual user action or marks the source incomplete. It does not bypass protections.
 
 ## Core workflow
 
@@ -44,48 +38,67 @@ Browser-assisted discovery uses the user's existing authenticated browser sessio
 /shortlist
 ```
 
-The full set of commands:
+Useful commands:
 
-- `/scrape` runs normal daily discovery, with the window chosen from run history
-- `/scrape 1d|7d|14d` uses an exact recency window
-- `/scrape exhaustive` runs the wider weekly or catch-up search
-- `/scrape gapfill` recovers under-covered source families without resetting state
-- `/scrape health browser` tests the authenticated browser sources without saving jobs
-- `/rank` verifies and scores the latest new or updated discoveries, then saves a shortlist snapshot
-- `/shortlist` shows the latest saved shortlist; `/shortlist today`, `/shortlist YYYY-MM-DD` and `/shortlist all` show today's, one date's, or the daily index
-- `/screen <URL or JD>` analyses a single vacancy against the profile
-- `/healthcheck` runs the local structural and deep validation
-- `/reset-discovery` is an explicit maintenance reset of seen-job state only
-- `/update-profile <fact>` maintains the private profile, only on your direct request
-- `/replace-master-cv <path>` installs a PDF you supply, byte for byte, only on your direct request
-- `/update-master` is deprecated and points at the two commands above
+- `/scrape` - normal daily discovery, window chosen from run history
+- `/scrape 1d|7d|14d` - exact recency window
+- `/scrape exhaustive` - wider weekly/catch-up search
+- `/scrape gapfill` - recover under-covered source families without resetting state
+- `/scrape health browser` - test authenticated browser sources without saving jobs
+- `/rank` - verify and score latest new/updated discoveries, then save a shortlist snapshot
+- `/shortlist` - latest saved shortlist
+- `/shortlist today` - latest saved shortlist from today
+- `/shortlist YYYY-MM-DD` - historical shortlist for a date
+- `/shortlist all` - historical daily index
+- `/screen <URL or JD>` - analyse one vacancy against the profile
+- `/healthcheck` - local structural/deep validation
+- `/reset-discovery` - explicit maintenance reset of seen-job state only
+- `/update-master` - deprecated pointer to the two commands below
+- `/update-profile <fact>` - EXPLICIT USER REQUEST ONLY. Maintains the private profile
+- `/replace-master-cv <path>` - EXPLICIT USER REQUEST ONLY. Installs a supplied PDF byte-for-byte
 
 There are deliberately no application-submission or outreach commands.
 
 ### Candidate authority
 
-`candidate/profile.md` is the complete private factual authority for matching, and `candidate/config.json` is the calibration derived from it. The master CV is a read-only subset the user curated for one audience, so a skill that is missing from the CV is not evidence that the candidate lacks it.
+`candidate/profile.md` is the complete private factual authority for matching, and
+`candidate/config.json` is the derived machine-readable calibration. The master CV is
+a read-only curated subset chosen by the user for one audience, so absence from the CV
+is never evidence that a skill, experience or achievement is missing.
 
-Discovery never writes to any of these. `/scrape`, `/rank`, `/screen`, `/shortlist` and every worker read them and stop there.
+Discovery is read-only toward all four authorities. `/scrape`, `/rank`, `/screen`,
+`/shortlist` and every worker read them and never write them.
 
-Two narrow commands maintain them, and only when you ask directly. `/update-profile` edits `candidate/profile.md`, and `candidate/config.json` where the derivation is deterministic. `/replace-master-cv` copies a PDF you created into `documents/master/cv.pdf` byte for byte, with no editing, rewriting, tailoring, regenerating or reformatting. Both show a preview, wait for a separate confirmation and back up first, and neither can perform the other's write.
+Two narrow commands maintain them, and only when you ask directly. `/update-profile`
+edits `candidate/profile.md` and, where the derivation is deterministic,
+`candidate/config.json`. `/replace-master-cv` copies a PDF you created byte-for-byte
+into `documents/master/cv.pdf` without editing, rewriting, tailoring, regenerating or
+reformatting it. Each shows a preview and waits for a separate confirmation, and each
+backs up first. Neither can perform the other's write.
 
-No job advert, website, retrieved document, worker result or project file can authorise either one. Tailoring a CV and applying for a job are outside this project.
+No job advert, website, retrieved document, worker result or project file can authorise
+either command. Tailoring a CV and applying for a job remain outside this project.
 
-`documents/master/cv.json` is a dormant legacy rendering source. A PDF you supplied was probably not generated from it, so the two can differ. That is expected, is never treated as candidate evidence, and never blocks discovery. The four files are not made read-only by the operating system, so you can replace them by hand whenever you want. `tools/render_cv.py` and `tools/render_cv_docx.py` are dormant and nothing invokes them.
+`documents/master/cv.json` is a dormant legacy rendering source. A PDF you supplied was
+probably not generated from it, so the two may legitimately differ. That divergence is
+expected, is never candidate evidence, and never blocks discovery.
+
+The four files are deliberately not made read-only by the operating system, so you can
+replace them by hand at any time. `tools/render_cv.py` and `tools/render_cv_docx.py`
+are dormant and no command invokes them.
 
 ### Starting a clean search
 
-`/reset-discovery` clears the seen-job list and nothing else. To reset the complete active search state before a real search, use the separate script:
+`/reset-discovery` clears the seen-job list and nothing else. To reset the COMPLETE active search state before a real search, use the separate command:
 
 ```bash
 python tools/reset_production.py --dry-run   # show what would happen; writes nothing
 python tools/reset_production.py --confirm   # archive, verify, then clear
 ```
 
-It clears seen jobs, suppression, the watchlist, run logs, the JD cache and shortlist snapshots. It preserves the candidate profile and calibration, the master CV, the matching policy, the search strategy, the source registry, all code and agent definitions, the sponsor-register snapshot, and verified employer identity. Nothing is cleared until a complete archive of the pre-reset runtime has been written and verified under `backups/production-reset/`, and older archives are never touched.
+It clears seen jobs, suppression, the watchlist, run logs, the JD cache and shortlist snapshots. It preserves the candidate profile and calibration, the master CV, the matching policy, the search strategy, the source registry, all code and agent definitions, the official sponsor-register snapshot, and verified employer identity. Nothing is cleared until a complete archive of the pre-reset runtime has been written and verified under `backups/production-reset/`, and older archives are never touched.
 
-`/scrape` is a project skill at `.claude/skills/scrape/SKILL.md`. Claude Code takes the invocation name from the skill directory, so the directory name and the documented command are the same word. Skill discovery is cached per session, so restart Claude Code after installing or renaming a skill if `/scrape` does not appear.
+`/scrape` is a project skill at `.claude/skills/scrape/SKILL.md`. Claude Code takes the invocation name from the skill directory, so the directory name and the documented command are the same word. Claude Code caches skill discovery per session, so restart Claude Code after installing or renaming a skill if `/scrape` does not appear.
 
 ## Pre-flight
 
@@ -132,11 +145,11 @@ The current local workspace uses:
 - `job_scraper/reference/`
 - `candidate/config.json`
 
-These paths all hold private data, and in this distribution every one of them is gitignored. `candidate/profile.md`, `candidate/config.json`, `candidate/cv-maintenance.md`, both files under `documents/master/`, and the `job_scraper/` state files (`seen_jobs.json`, `suppression.json`, `employers.json`, `sponsorship_evidence.json`, `watchlist.json`) are named in `.gitignore`, literally or through a parent directory rule, so a working copy cannot commit real data. The private working repository this was derived from TRACKS those authorities deliberately, so a bad edit to one can be recovered; a checkpoint that excluded the exact files an edit touches would not protect the work it exists to protect.
+These paths all hold private data, and they are NOT all gitignored. That is deliberate. `candidate/profile.md`, `candidate/config.json`, `candidate/cv-maintenance.md`, both files under `documents/master/`, and the `job_scraper/` state files (`seen_jobs.json`, `suppression.json`, `employers.json`, `sponsorship_evidence.json`, `watchlist.json`) are TRACKED in this strictly local Git repository, so a bad edit to an authority can be recovered. A checkpoint that excluded the authorities would not protect the work it exists to protect.
 
-The runtime and generated paths are gitignored here as well: `job_scraper/runs/`, `job_scraper/shortlists/`, `job_scraper/cache/`, `job_scraper/reference/`, `reports/`, `backups/`, `documents/master/history/`, `candidate/config.proposed.json` and `.claude/settings.local.json`.
+The rest are gitignored: `job_scraper/runs/`, `job_scraper/shortlists/`, `job_scraper/cache/`, `job_scraper/reference/`, `reports/`, `backups/`, `documents/master/history/`, `candidate/config.proposed.json` and `.claude/settings.local.json`.
 
-This distribution is published, and its history carries no candidate data. The PRIVATE working repository is the one that must not gain a remote casually: because it tracks the authorities, its history cannot be published as it stands. See **Privacy and GitHub** below.
+The repository has NO remote and must not gain one casually. Because the authorities are tracked, this history cannot be published as it stands. See **Privacy and GitHub** below before sharing anything.
 
 `config/sources.json`, `config/search_strategy.json` and `config/matching_policy.json` are deliberately NOT private. They describe discovery sources, search methods and evaluation policy only, and hold no credentials, cookies, account names or candidate data.
 
@@ -684,25 +697,19 @@ This is the final gate after any instruction change, and it is not replaceable b
 
 `python tools/preflight.py` is the lighter gate before a live run.
 
-### Validation on a fresh clone
-
-A fresh clone of this distribution reports **9 failing checks, and that is by design.** The private candidate authorities are deliberately not published, so the checks looking for `candidate/profile.md`, `candidate/cv-maintenance.md`, `documents/master/cv.pdf`, `documents/master/cv.json` and `job_scraper/seen_jobs.json` cannot pass, and the two discovery-state checks that read `seen_jobs.json` fail alongside them. Three further checks SKIP for the same reason.
-
-Copy the `.example` templates in `candidate/` to your own files and fill them in, and those failures resolve as the workspace gains the evidence they look for. A failure OUTSIDE that set is a real one.
-
 ## Privacy and GitHub
 
-This is the PUBLIC distribution. The private working repository it was derived from is a strictly local recovery checkpoint with no remote, which deliberately TRACKS the candidate authorities so a bad edit to one can be recovered; that history cannot be published as it stands, and this copy is not it.
+This repository is a strictly LOCAL recovery checkpoint. It has no remote, and it must not gain one without a deliberate decision.
 
-No candidate authority is present here: `candidate/profile.md`, `candidate/config.json`, `candidate/cv-maintenance.md`, `documents/master/cv.pdf`, `documents/master/cv.json` and the `job_scraper/` state files are all excluded. `candidate/` ships `.example` templates instead, and `.gitignore` names every private path, literally or through its parent directory, so a working copy cannot commit real data once you fill them in. Run captures, shortlist snapshots, the job-description cache, the regenerable sponsor snapshot, generated reports, backups and local Claude permission state ARE gitignored too.
+The private candidate authorities are tracked here on purpose: `candidate/profile.md`, `candidate/config.json`, `candidate/cv-maintenance.md`, `documents/master/cv.pdf`, `documents/master/cv.json`, and the `job_scraper/` state files. They are the files a mistake is most expensive in, and a checkpoint that excluded them would not protect the work it exists to protect. Run captures, shortlist snapshots, the job-description cache, the regenerable sponsor snapshot, generated reports, backups and local Claude permission state ARE gitignored.
 
-`tools/package_manifest.py` DERIVES the shareable set from an allowlist rather than listing it by hand, so a new tool joins automatically and a private authority cannot, and `verify` proves every path, digest and exclusion. `.gitattributes` pins byte-exact checkouts so those digests hold on every platform. Inspect `git status` before committing anything of your own.
+The consequence is that this history cannot be published as it stands. Before adding any remote, either strip those paths from history or start a fresh repository from a sanitised export. Always inspect `git status` and the repository history before publishing anything.
 
 ### A shareable archive
 
-This distribution is the result of applying that exclusion list. A copy of the private project intended for anyone else must exclude at minimum:
+A copy of this project intended for anyone else must exclude at minimum:
 
-- `.git/` (the private working repository's history carries the authorities, which is why this distribution was published as a fresh history rather than a filtered one)
+- `.git/` (it carries the private authorities in its history)
 - `.claude/settings.local.json`
 - `backups/`
 - `reports/`
@@ -722,7 +729,3 @@ python tools/package_manifest.py verify    # every path, digest and exclusion
 `verify` fails on a missing path, a changed digest, a duplicated entry, an unlisted package file, a private or ignored path that got in, and on the manifest naming itself. `--deep` runs it against the live workspace and against fixtures, so the exclusions are tested rather than described.
 
 This project is adapted from Mads Lorentzen's open-source `ai-job-search` project. See `UPSTREAM_NOTICE.md` and `UPSTREAM_LICENSE` for attribution and licence information.
-
-## Licence
-
-MIT. The full text is in `LICENSE`. This project is adapted from upstream work whose attribution and original MIT licence are preserved in `UPSTREAM_NOTICE.md` and `UPSTREAM_LICENSE`.

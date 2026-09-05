@@ -352,6 +352,16 @@ def family_capability(inventory_family, search_family, registry, rules):
         coverage; it simply cannot be held to a 72-hour promise it can never
         evidence. A seven-day recall target it can keep is honest, where a
         72-hour one it cannot check is not.
+      - CANNOT PAGE ITS OWN RESULTS -> `exploratory`. Added 2026-09-04 for
+        indeed, which executes the query and dates every card yet serves only
+        &start=0 to an unauthenticated client: the first &start=10 drew an
+        immediate reCAPTCHA across repeated measurements. A bucket asserts that
+        an INTERVAL WAS SEARCHED, and one relevance-ordered page of 16 results
+        cannot assert that however fresh and faithful those 16 are. This is a
+        third, genuinely distinct failure: the query runs, the window is
+        provable, and the inventory still cannot be reached to its end. Treating
+        it as capable put 12 unreachable buckets into the mandatory denominator
+        and the cadence simulation stopped covering every mandatory bucket.
 
     Returns (ceiling, reason): the STRONGEST tier this family may hold, one of
     'critical_fresh' (no restriction), 'rolling_recall', or 'exploratory'.
@@ -375,6 +385,16 @@ def family_capability(inventory_family, search_family, registry, rules):
             f'no enabled {inventory_family} source can be shown to execute a '
             f'{search_family} query (query_execution: {", ".join(modes)}), so it '
             f'cannot discharge a query-specific obligation')
+
+    # A source that cannot paginate cannot reach the end of its own interval, so
+    # the family owes no interval at all. Checked BEFORE freshness, because a
+    # family that cannot be exhausted is not rescued by dating what it does show.
+    if not any(bool(s.get('paginate', True)) for s in members):
+        return 'exploratory', (
+            f'no enabled {inventory_family} source can paginate its own results '
+            f'(paginate: false), so a query reaches only the first page and cannot '
+            f'assert that the interval was searched; it is planned and recorded '
+            f'but owes no interval')
 
     if need_fresh and all(str(s.get('freshness_support', '')) in bad_fresh
                           for s in members):
@@ -957,7 +977,24 @@ def cmd_denominators(args):
     }, indent=2, ensure_ascii=False))
 
 
+def _force_utf8_stdout():
+    """Vacancy text is not cp1252, and a Windows console is.
+
+    A real advert title carrying an en-dash or a pound sign made this tool exit
+    with UnicodeEncodeError instead of printing, which took `/rank` down on
+    Windows the moment a normal role title contained one. The DATA was fine; only
+    the console encoding was wrong, so fix the stream rather than the text.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if (getattr(stream, 'encoding', '') or '').lower().replace('-', '') != 'utf8':
+                stream.reconfigure(encoding='utf-8', errors='replace')
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def main():
+    _force_utf8_stdout()
     p = argparse.ArgumentParser(description='Per-bucket coverage checkpoints')
     sub = p.add_subparsers(dest='cmd', required=True)
 

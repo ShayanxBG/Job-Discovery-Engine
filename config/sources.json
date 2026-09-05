@@ -35,10 +35,10 @@
     },
     "indeed": {
       "display_name": "Indeed UK",
-      "notes": "Authenticated inventory is materially larger than the public view.",
+      "notes": "QUERYABLE AGAIN as of 2026-09-04, under a PAGE-ONE-ONLY, PACED constraint, after the exclusion's premise was retested and found wrong twice over. FIRST CORRECTION (2026-09-04): the 2026-09-03 claim that every path returned 403 was false. Indeed is reachable server-side: the classic search returns 200 with 16 genuine cards, /m is a 307 to it rather than a 403, the legacy RSS path is 404, /viewjob is 403 and api.indeed.com still does not resolve. SECOND CORRECTION: the blocker is not a request BUDGET, it is PAGINATION. Measured at 45 seconds between requests: a mixed probe reached request 5 and hit a reCAPTCHA on request 6, which was its first &start=10; a page-one-only probe at the same spacing ran 8 for 8 with 16 cards each and no challenge at all. Earlier probes that concluded 'one or two requests' were simply too fast, at 1.5 to 15 seconds. ROBOTS.TXT PERMITS THIS: the User-agent: * group carries Allow: /, disallows neither /jobs nor /viewjob, and explicitly Allows &start=0 through &start=90. The site's stated policy was never the obstacle. OPERATING RULE: one page per query (&start=0 only, never paginate), at least 45 seconds between requests, and STOP AT ONCE on any reCAPTCHA - it is never bypassed, and pacing exists to stay under the limit rather than to get around it. HONEST DEPTH: 16 cards per query is a RELEVANCE-ORDERED SAMPLE of the window, not exhaustive coverage of it, so Indeed is shallow next to LinkedIn (150+/query) or Reed (25/page over hundreds). It is real inventory, not full inventory, and must never be reported as the latter.",
       "monitoring_class": "daily",
       "queryable": true,
-      "policy_review_after": "2027-02-28"
+      "policy_review_after": "2026-12-04"
     },
     "stepstone": {
       "display_name": "StepStone UK (CWJobs and Totaljobs)",
@@ -144,7 +144,7 @@
       "requires_authenticated_browser": false,
       "prefers_authenticated_browser": true,
       "enabled": true,
-      "freshness_support": "unreliable-filter",
+      "freshness_support": "per-item-date",
       "state_source_type": "linkedin",
       "authenticated_source_type": "authenticated-linkedin",
       "default_source_confidence": "medium",
@@ -155,15 +155,46 @@
       "promoted_card_markers": [
         "Promoted"
       ],
-      "notes": "Downgraded 2026-08-31 from reliable-filter after production run scrape-20260831T083115570281. TWO separate findings. First, sortBy=DD DESTROYS keyword semantics: 'Python Developer' and 'Integration Developer' returned 17 of 18 identical job ids, and 'Python Django REST Framework' returned Splunk Consultant and Document Review Specialist. Never pass sortBy=DD. Second, WITHOUT that parameter the keyword search works correctly and returns genuinely query-specific results, but the card set is Promoted-dominated: across three verification searches only 3 of 16 cards carried any readable posted age while 12 were badged Promoted, so the Date posted filter cannot be verified per card. Read every card's own posted age, and where it is absent treat freshness as unknown and open the vacancy for its own date before counting it.",
+      "notes": "TWO ACCESS PATHS WITH DIFFERENT CAPABILITIES, and the grade above describes the GUEST SEARCH path, which is the one discovery uses. GUEST SEARCH (jobs-guest/jobs/api/seeMoreJobPostings/search) is the dated path: measured 2026-09-03, every card carried a per-item datetime (10 of 10 on each of 26 consecutive pages), f_TPR was honoured per item, and keyword semantics held exactly - 'Python Developer', 'Integration Developer' and 'Junior Backend Developer' returned ZERO overlapping job ids and titles that tracked the query. It paginates with start= in steps of 10 and keeps returning results to start=600, emptying at start=750, so one query reaches several hundred distinct dated vacancies rather than one screen. Deep pages reshuffle slightly, so a small number of ids repeat across pages: deduplicate by job id and never assume start=N holds a stable slice. AUTHENTICATED CARD LIST remains unreliable for freshness and must never be used to prove a window: across three verification searches in run scrape-20260831T083115570281 only 3 of 16 cards carried a readable posted age while 12 were badged Promoted, and the list virtualises so most cards never render. Use it for breadth only, and take dates from the guest path. NEVER pass sortBy=DD on any path. It destroys keyword semantics: 'Python Developer' and 'Integration Developer' returned 17 of 18 identical job ids, and 'Python Django REST Framework' returned Splunk Consultant and Document Review Specialist. Per-vacancy description and posted date: jobs-guest/jobs/api/jobPosting/<jobId>.",
       "productive_families": [
         "direct-title",
         "backend-capability",
         "adjacent-software",
         "early-career"
       ],
-      "inspect_cards_per_query": 30,
-      "query_execution": "verified"
+      "inspect_cards_per_query": 400,
+      "query_execution": "verified",
+      "guest_search_endpoint": "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords={keywords}&location=United+Kingdom&geoId=101165590&f_TPR={window}&start={start}",
+      "guest_search_page_size": 10,
+      "guest_search_max_start": 700,
+      "guest_search_location_shards": [
+        {
+          "location": "United Kingdom",
+          "geoId": "101165590"
+        },
+        {
+          "location": "London, United Kingdom"
+        },
+        {
+          "location": "Manchester, United Kingdom"
+        },
+        {
+          "location": "Birmingham, United Kingdom"
+        },
+        {
+          "location": "Cambridge, United Kingdom"
+        }
+      ],
+      "guest_search_shard_rationale": "The per-query result set is capped PER SEARCH SCOPE, not globally, so the UK-wide query alone reaches roughly half the inventory. Measured 2026-09-03 on 'Python Developer' over a 7-day window, each scope paged to exhaustion: United Kingdom returned 493 unique, while London, Manchester, Birmingham and Cambridge returned 341, 260, 178 and 214, of which 124, 207, 158 and 69 were vacancies the UK-wide query NEVER returned. Union 992 against 493. THESE ARE RECALL WIDENERS, NOT LOCATION FILTERS, and that distinction is not pedantry: measured over 60 cards each, only 18 percent of the Manchester shard's results were actually in Manchester, 8 percent for Birmingham and 10 percent for Cambridge, whose results were mostly London. Only London tracked its own label, at 90 percent. A shard's location can therefore NEVER be used to infer where a vacancy is; take the location from the card. `distance` does not repair this - a London search returned Glasgow and Newcastle at every value from 10 to 100 - so overlap cannot be tuned away and every scope must be deduplicated by job id. RE-CONFIRMED 2026-09-04 on a smaller paced sample (four pages per scope, 14-day window): United Kingdom returned 37 unique ids, and London, Manchester and Cambridge returned 37, 38 and 37, of which 23, 38 and 24 were ids the UK-wide query never returned - Manchester's entire result set was new. Union 101 against 37 for the UK-wide scope alone. The effect is not a stale measurement.",
+      "guest_card_fields_note": "A guest card carries title, company, location, an ISO datetime, 'Actively Hiring' and sometimes an applicant count. It carries NO salary and NO 'Promoted' badge: measured 2026-09-03, zero promoted markers in the fragment against 12 of 16 on the authenticated card list. So employment_conditions can never be scored from a card, and the promoted-card freshness pathology that affects the authenticated list does not apply to this path.",
+      "guest_search_budget_is_per_query_across_shards": true,
+      "guest_search_shard_budget_note": "inspect_cards_per_query is the budget for the whole QUERY, spent ACROSS the shard list, not per shard. Read it any other way and one query becomes 400 cards times five scopes: eleven bootstrap queries would fetch 22,000 rows against a run ceiling of 8,056, which is 2,200 HTTP requests for a pool the run has already said it will not consider. Spend it BREADTH-FIRST, round robin across the scopes, so every scope is sampled before any one is paged deep. That is also the better trade for recall: the measured value of sharding is that each scope returns vacancies the others never do, so five shallow scopes beat one deep one.",
+      "guest_search_window_map": {
+        "24h": "r86400",
+        "7d": "r604800",
+        "14d": "r1209600"
+      },
+      "guest_search_window_note": "f_TPR takes SECONDS and every one of these is a TRUE per-item filter, verified 2026-09-03: r86400 oldest 1 day, r604800 oldest 6, r1209600 oldest 13 across 120 cards, r2592000 oldest 30 across 120, nothing outside its window in any of them. r1209600 is a real 14-day bucket even though LinkedIn's own UI labels that chip 'Past month'; an earlier note in this workspace trusted the label over the behaviour and wrongly sent the 8-14 day slice elsewhere. Never substitute a wider window: the per-query result set is capped, so r2592000 returned 178 unique of which only 123 were inside 14 days, against r604800's 166 all inside 7."
     },
     {
       "id": "indeed",
@@ -171,7 +202,7 @@
       "family": "indeed",
       "kind": "authenticated-board",
       "requires_authenticated_browser": false,
-      "prefers_authenticated_browser": true,
+      "prefers_authenticated_browser": false,
       "enabled": true,
       "freshness_support": "reliable-filter",
       "state_source_type": "major-board",
@@ -181,14 +212,19 @@
       "rule_aliases": [
         "Indeed"
       ],
-      "notes": "fromage and sort=date are honoured. Stop on Cloudflare or CAPTCHA rather than bypassing it.",
+      "notes": "Aggregator with genuine UK inventory, reachable server-side with the complete browser header set from references/public-sources.md. ONE PAGE PER QUERY, 45s minimum spacing, never paginate, stop instantly on a reCAPTCHA. A card-less or captcha-bearing HTTP 200 is `blocked_captcha`, never `empty`. Resolve promoted and syndicated cards to the employer or original board posting before presenting, since much of Indeed's inventory is republished from ATS feeds this workspace already reads directly.",
       "productive_families": [
         "direct-title",
         "backend-capability",
         "early-career"
       ],
-      "inspect_cards_per_query": 30,
-      "query_execution": "verified"
+      "inspect_cards_per_query": 16,
+      "query_execution": "verified",
+      "search_url_template": "https://uk.indeed.com/jobs?q={keywords}&l=United+Kingdom&fromage={days}&start=0",
+      "paginate": false,
+      "min_seconds_between_requests": 45,
+      "pagination_note": "DO NOT PAGINATE. &start=0 is the only value this source tolerates from an unauthenticated client: measured 2026-09-04, eight consecutive page-one searches at 45s succeeded with 16 cards each, while the first &start=10 request drew an immediate reCAPTCHA. robots.txt allows &start=0..90, so this is a live rate control rather than a permission boundary - the allowance does not mean the server will serve it.",
+      "freshness_note": "fromage RE-VERIFIED 2026-09-04 and it filters per item: `fromage=14` returned 15 cards, none older than 14 days, every one carrying a readable relative age. Note that ALL 15 were promoted slots (adId set) and they still honoured the window - the opposite of the StepStone PREMIUM pathology, where promoted cards bypass postedwithin entirely. Take the age from each card's own formattedRelativeTime regardless, because trusting the filter and reading the card are not alternatives."
     },
     {
       "id": "cwjobs",
@@ -300,7 +336,7 @@
       "not_replaced_by": [
         "itjobswatch.co.uk"
       ],
-      "notes": "UK government service, now served as Work Hub at www.jobs.service.gov.uk. SEARCH IT DIRECTLY at search_url_template. The legacy findajob.dwp.gov.uk host is superseded and currently returns 503. Do NOT judge this source's availability from a search-engine `site:` restriction: in the first real run `site:jobs.service.gov.uk` was silently rewritten and returned itjobswatch.co.uk pages, which was wrongly read as the service having moved there. It has not. IT Jobs Watch is a salary-trend aggregator and is NEVER a substitute for this inventory. Verified reachable by direct read-only check on 2026-08-28, returning 635 results for 'python developer' with per-vacancy listings.",
+      "notes": "UK government service, now served as Work Hub at www.jobs.service.gov.uk. SEARCH IT DIRECTLY at search_url_template. The legacy findajob.dwp.gov.uk host is superseded and currently returns 503. Do NOT judge this source's availability from a search-engine `site:` restriction: in the first real run `site:jobs.service.gov.uk` was silently rewritten and returned itjobswatch.co.uk pages, which was wrongly read as the service having moved there. It has not. IT Jobs Watch is a salary-trend aggregator and is NEVER a substitute for this inventory. Verified reachable by direct read-only check on 2026-08-28, returning 635 results for 'python developer' with per-vacancy listings. REQUIRES A COMPLETE BROWSER HEADER SET, measured 2026-09-04: a bare User-Agent returns HTTP 403 on five of five requests and renders the generic GOV.UK 'Sorry, there is a problem with the service' page, which is indistinguishable from a real outage; the complete header set in `references/public-sources.md` returned HTTP 200 on five of five, with 2,571 results, per-item dates and keyword-faithful titles, fully parseable server-side. Never grade this source from a bare-User-Agent probe: it carries eleven of the fifty-eight bootstrap queries.",
       "productive_families": [
         "direct-title",
         "backend-capability",
@@ -323,7 +359,7 @@
       "rule_aliases": [
         "Built In"
       ],
-      "notes": "Technology-employer network. Often resolvable straight to an employer ATS posting.",
+      "notes": "Technology-employer network, London and UK. DIRECTLY FETCHABLE and query-faithful, verified 2026-09-03: https://builtin.com/jobs/search?search=<terms> returned 25 job links with 198 'python' mentions for 'python developer' and a COMPLETELY DISJOINT 25 links with zero for 'nurse'. Fetch it rather than delegating a `site:` query. It was recorded as a family GAP in run scrape-20260902T150702668082 purely because a worker's `site:` restriction found nothing, which is evidence about the search engine and not about this board.",
       "productive_families": [
         "direct-title",
         "backend-capability",
@@ -369,14 +405,14 @@
       "rule_aliases": [
         "JobServe"
       ],
-      "notes": "Heavily contract weighted. Most results are pre-filtered out by the contract rule. QUERY APPLICATION UNVERIFIED in production run scrape-20260831T102144228455 (2026-08-31): the keyword form submitted but the page reported the unfiltered 20004-job UK total with top results unrelated to the requested query. Until execution can be verified per query it may not own a required query-specific obligation.",
+      "notes": "DEMOTED to ignores_query on 2026-09-03 on direct measurement, confirming what production run scrape-20260901T090954515780 already observed. Fetching https://www.jobserve.com/gb/en/Job-Search/?q=<terms> for 'python' and for 'nurse' returned the SAME 25 result links, 100% overlap, with three 'python' mentions in a 116KB page. Contract-weighted and stale besides: run 1 saw 2022 listings. It owns no mandatory bucket, stays enabled as a supplemental lead source, and its output can never be recorded as query coverage.",
       "productive_families": [
         "direct-title",
         "backend-capability",
         "early-career"
       ],
       "inspect_cards_per_query": 20,
-      "query_execution": "unverified"
+      "query_execution": "ignores_query"
     },
     {
       "id": "technojobs",
@@ -392,7 +428,7 @@
       "rule_aliases": [
         "Technojobs"
       ],
-      "notes": "Independent UK technology board.",
+      "notes": "UNREACHABLE BY DIRECT FETCH, COVERABLE BY WORKER SEARCH. Re-measured 2026-09-04: www.technojobs.co.uk still has no A record, the apex technojobs.co.uk resolves to 3.9.65.81 but every path - https and http, apex and www, root and search - returns a connection failure with a complete browser header set. So do NOT direct-fetch it. THE FAMILY IS STILL COVERABLE, and this matters because it holds three REQUIRED rolling_recall queries: the site is indexed, and a worker search-engine query surfaces its live listing pages (verified 2026-09-04; run scrape-20260901T090954515780 saw 25 candidates this way). RECORD THE OUTCOME FROM WHAT THE WORKER ACTUALLY GOT, not from the dead fetch. If the worker returned usable listings the source is `ok`; only if the worker path ALSO returns nothing usable is it `unavailable`, with the DNS reason. An earlier version of this note said to record `unavailable` outright, which would have manufactured a family gap - and a family gap alone makes the whole run PARTIAL - on a family that had in fact been covered.",
       "productive_families": [
         "direct-title",
         "backend-capability",
@@ -415,7 +451,7 @@
       "rule_aliases": [
         "Adzuna"
       ],
-      "notes": "Aggregator updated dates can be misleading and must never override an older employer posting date. Resolve to the employer or original board posting before saving where possible.",
+      "notes": "Aggregator. Resolve to the employer or original board posting before saving where possible. FETCHABLE SERVER-SIDE WITH COMPLETE BROWSER HEADERS, corrected 2026-09-04. The 2026-09-03 note recorded a blanket HTTP 403 and concluded worker/search-engine only; that 403 was an artefact of probing with a bare User-Agent. Re-measured 2026-09-04: bare User-Agent returns 403, while the complete header set in `references/public-sources.md` returned HTTP 200 on three of three requests, with a real result page ('4,358 Python Developer Jobs in UK') and parseable cards. A 403 is still `blocked`, never `empty` - but do not record one until the request has been retried with complete headers.",
       "productive_families": [
         "direct-title",
         "backend-capability"
@@ -541,12 +577,12 @@
         "SkilledJobs",
         "skilledjobs.com"
       ],
-      "notes": "Lead generator. Resolve to an employer posting before presenting.",
+      "notes": "Lead generator. Resolve to an employer posting before presenting. QUERY EXECUTION VERIFIED 2026-09-03 by direct fetch of https://www.skilledjobs.com/visa-sponsorship-jobs?q=<terms>: 'nurse' returned 41 results and 'python developer' returned 0, so the query is genuinely applied and this site simply holds no Python backend inventory. That is `empty`, NEVER `unavailable`. The two `unavailable` outcomes recorded on 2026-09-01 and 2026-09-02 came from a worker `site:` search-engine restriction returning no on-domain pages, which is a DISCOVERY-METHOD failure and says nothing about the board. Fetch it directly. Note the result count is echoed in the page as a '<n> jobs' phrase, and the on-page form field echoes the query, so counting the word 'python' in the HTML measures the echoed query rather than any result.",
       "productive_families": [
         "sponsorship-oriented"
       ],
       "inspect_cards_per_query": 15,
-      "query_execution": "unverified"
+      "query_execution": "verified"
     },
     {
       "id": "sponsoredjobs",
@@ -563,12 +599,12 @@
         "SponsoredJobs",
         "sponsoredjobs.co.uk"
       ],
-      "notes": "Lead generator. Resolve to an employer posting before presenting.",
+      "notes": "Lead generator. DEMOTED to ignores_query on 2026-09-03. Direct fetch of https://sponsoredjobs.co.uk/jobs?q=<terms> returned a 2.6MB page whose job links were 100% IDENTICAL for 'python developer' and for 'nurse' (27 and 37 links, complete overlap): the whole inventory is served whatever is typed. It owns no mandatory bucket and the planner does not rotate onto it. It stays ENABLED as a supplemental lead source, exactly like findsponsorjobs and gradsponsor. Never record its output as query coverage.",
       "productive_families": [
         "sponsorship-oriented"
       ],
       "inspect_cards_per_query": 15,
-      "query_execution": "unverified"
+      "query_execution": "ignores_query"
     },
     {
       "id": "findsponsorjobs",
@@ -629,12 +665,12 @@
         "Jobsponsor",
         "jobsponsor.uk"
       ],
-      "notes": "Lead generator, accessible only intermittently.",
+      "notes": "DEMOTED to ignores_query on 2026-09-01 after production run scrape-20260901T090954515780, so it owns no mandatory bucket and the planner no longer rotates onto it. It stays ENABLED as a supplemental lead source, which the demotion invariant requires. The configured site jobsponsor.uk RESOLVES and returns HTTP 200; the 'domain does not exist' note recorded against that run referred to jobsponsor.co.uk, which was a worker-prompt error and is NOT this source's domain. The real grounds are two. First, the query is ignored: /jobs, /jobs?q=python+developer and /jobs?title=python returned byte-identical 29,986-byte responses on 2026-09-01, so a text query changes nothing. Second, full results are gated behind paid credits and a CV upload, and uploading a CV is outside this workspace's product boundary, so that path can never be worked here. Promote back to unverified or verified only if a keyword-searchable, non-gated listing appears.",
       "productive_families": [
         "sponsorship-oriented"
       ],
       "inspect_cards_per_query": 15,
-      "query_execution": "unverified"
+      "query_execution": "ignores_query"
     }
   ],
   "family_coverage_policy": {

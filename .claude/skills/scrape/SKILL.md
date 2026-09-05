@@ -3,7 +3,7 @@ name: scrape
 version: 3.0.0
 description: >
   Finds fresh UK software-development vacancies that match the candidate's verified profile, using
-  authenticated LinkedIn and Indeed browser search when available plus public employer/ATS,
+  the no-browser LinkedIn guest endpoint plus public employer/ATS,
   UK-board and sponsorship-source discovery. It searches broadly, deduplicates carefully,
   separates direct matches from agency leads, and presents only realistic new or materially
   updated opportunities. Triggers on: /scrape, find jobs, search jobs, find new jobs,
@@ -24,7 +24,7 @@ This file is the execution sequence. Branch detail lives in `references/`, which
 
 | Read | When |
 | --- | --- |
-| `references/browser-sources.md` | The run will use the signed-in Chrome session (LinkedIn, Indeed, CWJobs, Totaljobs) |
+| `references/browser-sources.md` | The run will search LinkedIn by any path (it owns the no-browser guest endpoint), or will use the signed-in Chrome session for CWJobs/Totaljobs. Indeed is NOT queryable and must not be attempted |
 | `references/public-sources.md` | Delegating to public-source workers, running employer/ATS discovery, or judging minimum coverage |
 | `references/vacancy-processing.md` | A candidate survived the cheap gates and is worth fetching, classifying and saving |
 | `references/sponsorship-verification.md` | Sponsorship evidence could change whether a role is worth keeping |
@@ -49,7 +49,7 @@ Read these; do not restate them here.
 - `/scrape 1d` | `7d` | `14d` -> exactly that window. Never widen automatically.
 - `/scrape broad` -> deep discovery plus domain-overlap query families.
 - `/scrape exhaustive` -> maximum practical coverage, for a weekly or catch-up sweep.
-- `/scrape gapfill` -> targeted recovery after an incomplete run. Preserve seen-state, search under-covered or blocked families plus employer/ATS resolution across 14 days by default, and do not repeat a full LinkedIn/Indeed sweep unless one of those was incomplete.
+- `/scrape gapfill` -> targeted recovery after an incomplete run. Preserve seen-state, search under-covered or blocked families plus employer/ATS resolution across 14 days by default, and do not repeat a full LinkedIn sweep unless it was incomplete.
 - `/scrape quick` -> reduced coverage for troubleshooting only, never the daily workflow.
 - `/scrape linkedin` -> LinkedIn-heavy pass, authenticated if Chrome is connected, otherwise public plus direct-employer verification.
 - `/scrape browser` -> REQUIRE authenticated browser discovery. If Chrome is unavailable, stop and explain how to enable it rather than silently falling back.
@@ -274,7 +274,7 @@ Both accept a JSON array on stdin or `--file` and route through the same decisio
 
 Authenticated browser discovery and public discovery together; neither replaces the other. Read `references/browser-sources.md` and `references/public-sources.md` for the passes this run will actually use.
 
-Coverage targets, not quotas: roughly 250-400 raw discoveries and 40-70 deep checks for a normal deep run; roughly 400-650 and 70-120 for `exhaustive`. Continue past them while marginal yield is clearly useful, and never pad a thin market.
+Coverage targets, not quotas: read the mode's own `global_raw_candidate_ceiling` and `global_deep_jd_ceiling` from the plan rather than a remembered figure, because both were resized on 2026-09-03 when LinkedIn depth was measured. Raw discovery is now far larger than the deep budget by design, so the binding decision is the READ ORDER in `references/vacancy-processing.md`, not the raw count. Continue past a target while marginal yield is clearly useful, and never pad a thin market.
 
 ### 2. Cheap pre-filter before expensive fetching
 
@@ -314,7 +314,10 @@ Read `references/run-accounting.md`. Counters must reconcile before the run clos
 - Stop at any CAPTCHA, anti-bot check or account challenge and let the user handle it. Never bypass one.
 - A stuck or non-essential worker is dropped rather than allowed to block run completion.
 - If authenticated discovery is unavailable in a mode that did not require it, say so and continue publicly. In `/scrape browser`, stop and explain instead.
-- Never report public LinkedIn or Indeed coverage as equivalent to authenticated inventory.
+- Never report public LinkedIn or Indeed coverage as equivalent to authenticated
+  inventory. This limits what SIZE may be claimed, never what a bucket may credit:
+  the LinkedIn guest endpoint proves query execution and per-item dates, so it
+  discharges a LinkedIn bucket on its own. Indeed has no such path.
 
 ## Non-negotiable rules
 
@@ -327,7 +330,7 @@ Read `references/run-accounting.md`. Counters must reconcile before the run clos
 7. Relocation anywhere in the UK is acceptable, so location is never a match penalty.
 8. Only current, open postings inside the selected recency policy.
 9. An employer-direct or authenticated source beats an aggregator when available.
-10. Public LinkedIn/Indeed coverage must never be described as complete authenticated coverage.
+10. Public LinkedIn/Indeed coverage must never be described as complete authenticated coverage. A credited LinkedIn guest query is a proven query over a proven window, not a claim of full inventory.
 11. Respect source access limits, captchas and rate limits. Never bypass a captcha.
 12. Seen-state must be updated so repeated runs surface new or materially upgraded roles rather than recycling the same list.
 13. Agency Leads stay separate from Direct Matches and never satisfy a widening threshold.

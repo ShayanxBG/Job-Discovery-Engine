@@ -62,8 +62,40 @@ Only the shapes, because the terms come from the planner:
 - Employer ATS: `site:job-boards.greenhouse.io`, `site:boards.greenhouse.io`, `site:jobs.lever.co`, `site:jobs.ashbyhq.com`, `site:jobs.smartrecruiters.com`, `site:apply.workable.com`, `site:myworkdayjobs.com`
 - Employer careers: `"<title>" careers United Kingdom -recruitment-agency`
 - Candidate resolution: `"<company>" "<exact title>" careers`, `site:<known company domain> "<exact title>"`
-- Boards: `site:cwjobs.co.uk/job`, `site:reed.co.uk/jobs`, `site:totaljobs.com/job`, `site:builtinlondon.uk/jobs`, `site:welcometothejungle.com/en/companies`, `site:jobserve.com`, `site:technojobs.co.uk`, `site:adzuna.co.uk`
-- Sponsor boards: `site:huntukvisasponsors.com/jobs`, `site:skilledjobs.com`, `site:sponsoredjobs.co.uk/jobs`, `site:findsponsorjobs.co.uk`, `site:gradsponsor.co.uk`, `site:jobsponsor.uk`
+- Boards: `site:welcometothejungle.com/en/companies`, `site:jobserve.com`,
+  `site:technojobs.co.uk`, `site:adzuna.co.uk`. Only these four need a search
+  engine. CWJobs, Totaljobs, Reed and DWP are fetched directly, and so is Built In:
+  `https://builtin.com/jobs/search?search=<terms>` was verified query-faithful on
+  2026-09-03, returning 25 job links for `python developer` and a COMPLETELY
+  DISJOINT 25 for `nurse`. Built In was recorded as a family gap on 2026-09-02 only
+  because a worker `site:` query found nothing on it.
+  Two of the four genuinely cannot be fetched, which is why they keep the worker
+  route: `adzuna.co.uk` returns HTTP 403 to a direct fetch, and
+  `www.technojobs.co.uk` has no DNS record at all while the apex times out. Record
+  those as `blocked` and `unavailable`, never as `empty`.
+- Sponsor boards: FETCH THESE DIRECTLY, do not delegate them as `site:` queries.
+  Every one returned `unavailable` on 2026-09-01 and 2026-09-02 purely because a
+  worker's `site:` restriction found no on-domain pages, and all five were then
+  confirmed live and fetchable on 2026-09-03. That is the search-engine failure
+  described below, not a board failure, and it wasted sixteen queries.
+  Only two of them apply the query at all, measured the same day by fetching one
+  page for `python developer` and one for `nurse` and comparing the results:
+
+  | Board | Direct search URL | Applies the query? |
+  | --- | --- | --- |
+  | Hunt UK Visa Sponsors | `https://huntukvisasponsors.com/jobs?q=<terms>` | YES |
+  | SkilledJobs | `https://www.skilledjobs.com/visa-sponsorship-jobs?q=<terms>` | YES |
+  | SponsoredJobs | `https://sponsoredjobs.co.uk/jobs?q=<terms>` | NO, 100% identical results |
+  | FindSponsorJobs | `https://findsponsorjobs.co.uk/jobs?q=<terms>` | NO |
+  | GradSponsor | `https://gradsponsor.co.uk/jobs?q=<terms>` | NO, byte-identical page |
+  | JobSponsor | `https://www.jobsponsor.uk/` | NO, credit-gated |
+
+  SkilledJobs returns 41 results for `nurse` and ZERO for `python developer`, so
+  it genuinely holds no Python backend inventory. Record that as `empty`, never as
+  `unavailable`. Count its results from the page's own `<n> jobs` phrase: the
+  search box echoes the query back, so counting the word `python` in the HTML
+  measures the echo and not the results. The four that ignore the query stay
+  enabled as supplemental lead sources and can never be recorded as query coverage.
 
 DWP Find a Job is deliberately NOT in that list. Fetch `https://www.jobs.service.gov.uk/jobs/search?keywords=<terms>` directly.
 

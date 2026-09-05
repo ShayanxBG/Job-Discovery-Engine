@@ -413,7 +413,23 @@ def cmd_validate(args):
     raise SystemExit(0 if ok else 1)
 
 
+def _force_utf8_stdout():
+    """Vacancy text is not cp1252, and a Windows console is.
+
+    Real adverts carry emoji and arrows. Printing one through a cp1252 console
+    raised UnicodeEncodeError and killed the process mid-ranking. The DATA is
+    fine; only the stream is wrong, so fix the stream rather than the text.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if (getattr(stream, 'encoding', '') or '').lower().replace('-', '') != 'utf8':
+                stream.reconfigure(encoding='utf-8', errors='replace')
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def main():
+    _force_utf8_stdout()
     p = argparse.ArgumentParser(description='Discovery source registry helper')
     sub = p.add_subparsers(dest='cmd', required=True)
 

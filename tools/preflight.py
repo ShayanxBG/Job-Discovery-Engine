@@ -154,7 +154,7 @@ def check_search_strategy():
 def check_experience_calibration():
     """Commercial-experience freshness. A maintenance WARNING, never a gate.
 
-    The current role is ongoing and the profile states month-granularity dates, so
+    The Frontier role is ongoing and the profile states month-granularity dates, so
     the recorded range describes a moment rather than a standing fact. It is never
     extrapolated by guessing elapsed time, because that would invent a day nobody
     stated; it is reported as stale instead. It can reject nothing: the hard
@@ -450,7 +450,23 @@ def cmd_check(args):
     raise SystemExit(0 if report['status'] != 'NOT_READY' else 1)
 
 
+def _force_utf8_stdout():
+    """Vacancy text is not cp1252, and a Windows console is.
+
+    Real adverts carry emoji and arrows. Printing one through a cp1252 console
+    raised UnicodeEncodeError and killed the process mid-ranking. The DATA is
+    fine; only the stream is wrong, so fix the stream rather than the text.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if (getattr(stream, 'encoding', '') or '').lower().replace('-', '') != 'utf8':
+                stream.reconfigure(encoding='utf-8', errors='replace')
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def main():
+    _force_utf8_stdout()
     p = argparse.ArgumentParser(
         description='Deterministic pre-live readiness gate. Searches nothing, writes nothing.')
     p.add_argument('--verbose', action='store_true', help='Include every individual check.')

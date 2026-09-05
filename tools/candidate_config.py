@@ -290,7 +290,7 @@ def derive_commercial_experience(identity_text):
     """The candidate's own confirmed commercial-experience total, as a dated RANGE.
 
     A scalar was the wrong shape and became wrong with time. The profile states
-    month-granularity role dates and the current role is ONGOING, so any single
+    month-granularity role dates and the Frontier role is ONGOING, so any single
     number is both falsely precise and quietly decaying: 21 months was true on
     29 August 2026 and is not true a quarter later.
 
@@ -869,7 +869,23 @@ def cmd_diff(args):
     }, indent=2, ensure_ascii=False))
 
 
+def _force_utf8_stdout():
+    """Vacancy text is not cp1252, and a Windows console is.
+
+    Real adverts carry emoji and arrows. Printing one through a cp1252 console
+    raised UnicodeEncodeError and killed the process mid-ranking. The DATA is
+    fine; only the stream is wrong, so fix the stream rather than the text.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if (getattr(stream, 'encoding', '') or '').lower().replace('-', '') != 'utf8':
+                stream.reconfigure(encoding='utf-8', errors='replace')
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def main():
+    _force_utf8_stdout()
     p = argparse.ArgumentParser(description='Private candidate matching configuration')
     sub = p.add_subparsers(dest='cmd', required=True)
 

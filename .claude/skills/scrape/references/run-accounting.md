@@ -22,6 +22,54 @@ Outcomes are `ok`, `empty`, `partial`, `blocked_captcha`, `blocked_permission`, 
 
 `empty` and a failure outcome mean completely different things and must never be conflated. `empty` says the source genuinely held nothing, which is market supply. `changed_layout`, `blocked_captcha`, `timeout` and the rest say coverage was lost, which is a source problem. A source that broke must never be recorded as `0 results`.
 
+**How to tell them apart, because both arrive as an HTTP 200 with no results.** A
+throttled board does not announce itself: it returns a normal status code, the
+usual page furniture, often the query echoed back, and no cards. Believing it is
+worse than a visible failure, because `empty` is a COVERING outcome, so it counts
+the source as searched end to end AND advances that bucket's checkpoint. The
+interval is then recorded as covered and is never searched again.
+
+So a result set with no items is never recorded from a single observation. Retry
+it once, and only then decide:
+
+- Empty again, and shallower pages of the same query also returned nothing: the
+  source genuinely held nothing. Record `empty`.
+- Returns items on retry: the source is throttling. Record `partial`, which is a
+  FAILED outcome, so the bucket does not advance and the family keeps
+  `GAP_REMAINS`.
+- Empty on retry at an offset where SHALLOWER pages returned items: throttling
+  again, and the same `partial` - BUT ONLY IF the board's own reported total is
+  not already accounted for. **A published total beats this heuristic.** Measured
+  2026-09-04: CWJobs `Integration Developer` returned 25 cards on page 1 and
+  nothing on page 2, which the heuristic alone calls throttling; the page's own
+  heading said `12 Integration Developer jobs`, so page 1 had already exhausted
+  the result set and the extra cards were promoted filler. That query is `ok`.
+  Recording it `partial` would have manufactured lost coverage out of a source
+  that answered completely.
+
+**And the degraded answer is not always empty. It can be plausible.** The rule
+above is about a result set with NO items, which at least looks wrong. Reed does
+something harder to catch: measured 2026-09-04, a fetch of
+`reed.co.uk/jobs/python-developer-jobs` returned a well-formed page whose own
+embedded data said `count: 7` and carried exactly 7 jobs. Five immediate repeats
+of the SAME url returned `count: 1182` and 25 jobs. Nothing in the degraded
+response was malformed, no status code was unusual, and its internal numbers
+agreed with each other - it simply described a market that does not exist.
+
+A run believing it would have recorded `ok` with 7 candidates, raised no warning,
+and advanced the bucket over 1,175 vacancies it never saw.
+
+So extend the retry rule from EMPTY to IMPLAUSIBLE: before recording the outcome of
+a query on a REQUIRED bucket, retry once when the result set is empty OR is far
+smaller than that source usually returns for that kind of term. Where the board
+publishes its own total, compare the two runs' totals rather than the page you were
+given. Agreement across two observations is the evidence; a single self-consistent
+page is not, because that is exactly what the degraded response looks like.
+
+This has been measured on more than one board - LinkedIn guest at `start=850` and
+`start=900` returning no cards, and Reed returning a plausible wrong total - so
+treat it as the default behaviour of a busy board rather than a quirk of one site.
+
 Close the run with its counts:
 
 ```text
@@ -77,8 +125,9 @@ Always include a compact coverage block before the jobs:
 
 ```text
 Coverage:
-  LinkedIn authenticated: ok [queries X, cards inspected Y]
-  Indeed authenticated: ok [queries X, results inspected Y]
+  LinkedIn guest: ok [queries X, cards inspected Y]
+  DWP Work Hub: ok [queries X, cards inspected Y]
+  Reed: ok [queries X]
   CWJobs browser: ok [queries X]
   Totaljobs browser: changed_layout [queries X] <- lost coverage
   Employer/ATS: ok [searches X, candidate resolutions Y]
@@ -101,7 +150,7 @@ Source coverage answers "did we look?". Query coverage answers "did we look for 
 
 ```text
 python tools/discovery_run.py query --run-id <run_id> --query-id <id> --search-family direct-title \
-  --source-id indeed --outcome ok --coverage-bucket indeed::direct-title::python-developer --window 14d \
+  --source-id linkedin --outcome ok --coverage-bucket linkedin::direct-title::python-developer --window 14d \
   --raw-candidates 20 --new-canonical 6 --eligible 9 --deep-checked 4
 ```
 
@@ -165,7 +214,7 @@ Two predicates read these differently, deliberately:
 - `coverage_ledger.run_is_creditable` requires finished, production mode and not
   `forced_partial`, and then lets each QUERY's own outcome decide its bucket.
   Coverage is keyed per bucket precisely because a board holds one inventory and
-  filters it by query text, so a broken LinkedIn cannot un-search the ten Indeed
+  filters it by query text, so a broken LinkedIn cannot un-search the eleven DWP
   queries that returned `ok` beside it. Gating per-bucket evidence on a whole-run
   verdict is what left 30 genuinely searched buckets uncredited.
 
@@ -276,10 +325,12 @@ Browser availability is informational in ordinary health mode.
 
 1. Claude in Chrome tools available
 2. read-only access to a logged-in LinkedIn Jobs page
-3. read-only access to Indeed UK
-4. test CWJobs navigability when permitted
-5. test Totaljobs navigability when permitted
+3. test CWJobs navigability when permitted
+4. test Totaljobs navigability when permitted
 
-CWJobs/Totaljobs being blocked should be reported explicitly as incomplete source coverage rather than causing the core LinkedIn/Indeed browser health test to fail.
+Indeed is NOT part of this test and must not be opened by it: the family is not
+queryable, and a health check that visits it is still an attempt.
+
+CWJobs/Totaljobs being blocked should be reported explicitly as incomplete source coverage rather than causing the core LinkedIn browser health test to fail. LinkedIn's own coverage path needs no browser at all, so a browser failure never means LinkedIn was unsearchable.
 
 Do not save any jobs in health mode.

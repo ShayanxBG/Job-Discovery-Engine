@@ -58,11 +58,75 @@ Employer/ATS sources include Greenhouse, Lever, Ashby, Workable, SmartRecruiters
 
 Unless access fails or the user explicitly limits the source, attempt all of these families:
 
-- LinkedIn Jobs: authenticated if available, at least 12 title/query families in normal deep mode.
-- Indeed UK: authenticated if available, at least 8 title/query families in normal deep mode.
+- LinkedIn Jobs: a PRIMARY inventory family holding nine critical buckets, and the
+  only one whose coverage path needs no browser. Search it by the paginated guest
+  endpoint in `references/browser-sources.md` EVEN WHEN CHROME IS UNAVAILABLE, and
+  page each query deep rather than taking one screen. At least 12 title/query
+  families in normal deep mode; add the authenticated card list for extra breadth
+  when Chrome is connected.
+- Indeed UK: **NOT QUERYABLE, and not attempted at all.** It is excluded with a
+  review date in `config/sources.json`, the planner funds it zero queries in every
+  mode, and `references/browser-sources.md` holds the measured evidence. Do not
+  count it toward any floor below and do not record a source outcome for it: a
+  family becomes a GAP only once ATTEMPTED, and that gap alone makes a run PARTIAL.
 - Employer/ATS direct: at least 8 targeted searches/resolution attempts across employer careers, Greenhouse, Lever, Ashby, Workable, SmartRecruiters and Workday.
 - General UK boards: at least 6 focused searches AND at least 4 distinct board/platform families attempted across CWJobs/Totaljobs, Reed, DWP Find a Job, Built In, Welcome to the Jungle, JobServe, Technojobs or Adzuna where useful. CWJobs and Totaljobs share a platform and count as one diversity family even when both are searched. No single board may satisfy the diversity floor by repeating queries. Browser-search CWJobs/Totaljobs when available.
 - Sponsorship-focused sources: normally 8-12 focused searches across at least 4 current sources in `search-queries.md`. Once direct-employer/ATS and general-board coverage is incomplete, do not spend dozens of extra searches on sponsor boards. Additional sponsor-board searching beyond roughly 15 queries is justified only when those sources are still producing unique plausible leads and the primary source families are already covered.
+
+### Fetch boards with a complete browser header set
+
+A server-side board fetch must send the headers an ordinary browser sends, not a
+bare `User-Agent`. Several UK boards refuse an incomplete header set outright, and
+they refuse it with a status that reads like a dead site, so an under-specified
+fetch gets recorded as a broken source and its queries are written off.
+
+Measured 2026-09-04, five requests each way:
+
+| Source | Bare `User-Agent` | Complete header set |
+| --- | --- | --- |
+| DWP Work Hub (`www.jobs.service.gov.uk`) | 403 five times out of five | 200 five times out of five, 2,571 results, dated, keyword-faithful |
+| Adzuna | 403 | 200, 4,358 results |
+
+Both were previously recorded as blocked on the strength of a bare-`User-Agent`
+probe. That was wrong, and it was expensive: DWP carries eleven of the
+fifty-eight bootstrap queries and Adzuna two, so 22% of the run was being written
+off by the way it asked.
+
+Send all of: `User-Agent` (a current desktop Chrome string), `Accept`,
+`Accept-Language: en-GB,en;q=0.9`, `Accept-Encoding`, `Upgrade-Insecure-Requests`,
+and `Sec-Fetch-Dest`/`Sec-Fetch-Mode`/`Sec-Fetch-Site`. Leave-one-out showed
+`Accept-Language` and the `Sec-Fetch-*` group are each individually necessary for
+DWP, but supplying only those two still returns 403: it is header COMPLETENESS
+that is being judged, so send the whole set rather than a minimal pair. The same
+set was verified to work, and to break nothing, on LinkedIn guest, Reed,
+Totaljobs, Built In and Welcome to the Jungle.
+
+Two corollaries. A 403 or an error page from a board is never evidence that the
+site is down until it has been retried with complete headers. And this is
+independent of the card-less-200 rule in `references/run-accounting.md`: headers
+decide whether you are served at all, that rule decides whether what you were
+served can be believed.
+
+### DWP Work Hub: window it with `postingDateRange`, and read `Added on`
+
+Two things about this source, both measured 2026-09-04, and both worth getting
+right because it carries eleven of the fifty-eight bootstrap queries.
+
+**Window it with `postingDateRange`, in days**, appended to the registry's
+`search_url_template`. It genuinely filters: `Python Developer` returned 558
+results unwindowed, 308 at `postingDateRange=14` and 146 at `postingDateRange=7`.
+Do NOT reach for `sortOption=DATE` to get freshness - date sorting on this source
+OR-matches the query terms and destroys keyword fidelity. Relevance ordering plus
+`postingDateRange` keeps both.
+
+**Take the posted date from the `Added on` label, never from a bare date regex.**
+Result cards render it as `Added on 30 Aug 2026`. A naive scan for any date in the
+page also matches text inside the vacancy body: a card in the 7-day result set
+carried `This document was prepared on 30 April 2026. It was last reviewed on
+27 May 2026`, which is a privacy statement the employer pasted into the advert. A
+regex taking the first date would have aged that vacancy at roughly 100 days and
+dropped a fresh role as out of window - and, because an out-of-window judgement is
+recorded rather than re-derived, it would have stayed dropped.
 
 Source targets are floors, not ceilings. If a source is still producing unique plausible vacancies, continue. If a source is blocked or unproductive, record that and spend effort elsewhere. Source diversity outranks merely hitting a raw query count.
 

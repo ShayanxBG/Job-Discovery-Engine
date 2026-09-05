@@ -69,3 +69,35 @@ A site can pass `/scrape health browser` and still fail later because of transie
 - Do not repeatedly hammer a blocked source.
 
 Use `/scrape gapfill` after an otherwise completed run when meaningful source families remained uncovered.
+
+## Source findings from production runs
+
+Recorded from real runs. Each names the run that produced it, so a later reader can tell a measured finding from a guess.
+
+### DWP: sort by relevance, never by date
+
+On DWP Work Hub (`www.jobs.service.gov.uk`), `sortOption=DATE` collapses keyword relevance. Measured in run `scrape-20260901T090954515780`: `Python Developer` sorted by date returned Clinical Practice Development Nurse, Training and Development Chef and Business Development Manager, because the query OR-matches "Developer" and "Development" and drops "Python". The same query under `sortOption=RELEVANCE` returned genuinely Python-specific roles.
+
+This is the same failure LinkedIn shows under `sortBy=DD`, on a different site.
+
+Use relevance sort together with the source-side date filter, which is honoured:
+
+```text
+https://www.jobs.service.gov.uk/jobs/search?keywords=<query>&postingDateRange=14&sortOption=RELEVANCE&resultsPerPage=30
+```
+
+`postingDateRange` accepts 1, 3, 7 and 14. Relevance still degrades into OR-matching further down a common-word result list, so read each card's own title and stop when the results stop naming the stack.
+
+### LinkedIn: the authenticated list does not date its cards
+
+In the same run the authenticated LinkedIn jobs list rendered 7 of 32 result items, and every one of them was undated with 6 badged `Promoted`. An undated card can never be counted toward a window or credit a bucket, so the authenticated pass alone could not evidence freshness.
+
+The public `jobs-guest` endpoint returned the same searches with clean per-card posted dates, and that is what the run used for LinkedIn coverage.
+
+Record that honestly: results obtained this way are PUBLIC coverage and must never be reported as authenticated inventory. The distinction is not cosmetic, because public and authenticated LinkedIn expose different inventory.
+
+### Reed: capability-term queries were dropped, pending confirmation
+
+In run `scrape-20260901T090954515780` Reed returned no usable results for both capability-term queries, `Python Django REST Framework` and `Python REST API`: the `site:` restriction was not honoured and the results came back from unrelated domains. Both were recorded `partial` and correctly credited no coverage, which is why 31 of 33 critical buckets completed rather than all 33.
+
+No configuration has been changed for Reed. One run is not enough to distinguish a search-engine artefact from a source-capability limit. Confirm on the next run before deciding whether this is a `query_execution` fact about Reed or a transient indexing failure.

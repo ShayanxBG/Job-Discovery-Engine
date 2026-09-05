@@ -136,6 +136,43 @@ Ordinary wording that a candidate must currently have the right to work in the U
 
 ## Step 3: Fetch and verify promising postings
 
+### Decide the READ ORDER before spending the deep budget
+
+Far more candidates survive the cheap gates than the run can open. A daily plan
+now reaches on the order of 3,000 canonical candidates against a
+`global_deep_jd_ceiling` of 70, so WHICH survivors get read decides what the human
+ever sees. Do not read them in discovery order, and do not pick by eye:
+
+```text
+python tools/discovery_candidate.py read-order --file <candidates.json> --deep-budget <ceiling>
+```
+
+Input is `{"candidates": [...], "sponsor_evidence": {"<lowercased employer>": "confirmed"|"partial"|""}}`.
+It returns `read_now` in priority order plus the `deferred` remainder.
+
+The priority is derived from the privacy-safe search profile, never invented, and
+scores five things out of 100: the stack the TITLE names (40), how close the level
+is (25), whether the employer already carries sponsorship evidence (20), how
+authoritative the source is (10), and how fresh the posting is (5). Each row
+carries its own `read_priority_reason`, so the order is auditable.
+
+Two rules govern how you use it:
+
+- **It orders, it never eliminates.** Everything past the deep budget is
+  `deferred`, which the run counters define as lost DEPTH, not rejection. Those
+  candidates stay in state and a later run can still reach them. Never record a
+  deferred candidate as filtered, and never let a low read priority become a
+  suppression record.
+- **It is not a match score.** `rank_score` is computed by
+  `tools/match_evaluation.py` from an advert somebody actually read. Read
+  priority is a guess about which unread advert is worth opening, made from a
+  card. Never store it on a job record and never report it as a fit.
+
+Unknown is never scored as zero here, for the same reason it never is elsewhere:
+an employer with no sponsorship evidence is usually one nobody has CHECKED yet,
+and checking mostly happens after a read. Driving those to the bottom would make
+it self-fulfilling.
+
 For each promising hit, fetch/read the actual posting. Prefer the employer page.
 
 Extract and normalise:

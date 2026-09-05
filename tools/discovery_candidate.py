@@ -71,8 +71,28 @@ BODY_VERDICTS = ('KEEP_FOR_DEEP_CHECK', 'LOW_SIGNAL', 'HARD_REJECT')
 
 # Source authority for cross-source consolidation, strongest first. The winner
 # becomes the primary record; the others survive as secondary evidence.
-SOURCE_TYPE_AUTHORITY = ('employer-ats', 'employer-direct', 'authenticated-board',
-                         'uk-board', 'aggregator', 'sponsor-board', 'public-web', 'unknown')
+#
+# EVERY source_type the schema admits must appear here. An absent value does not
+# rank neutrally, it ranks WORST: `_authority_rank` returns len(tuple) for anything
+# it does not recognise, below even 'unknown'. Until 2026-09-04 seven admitted
+# values were missing - 'linkedin', 'authenticated-linkedin', 'authenticated-indeed',
+# 'major-board', 'agency-board', 'ats' and 'official' - so a LinkedIn sighting lost
+# primacy to a public-web scrape, and 'ats' and 'official', which `SOURCE_RANK`
+# scores as the STRONGEST sources, lost to it as well. The same tuple drives
+# `read_priority`, so those sources were also sorted to the back of the deep-read
+# budget. The tiers below follow `job_state.SOURCE_RANK`, and the order WITHIN the
+# values that were already here is unchanged, so this is a pure insertion.
+SOURCE_TYPE_AUTHORITY = (
+    # SOURCE_RANK 4: a canonical employer or official record.
+    'employer-ats', 'ats', 'employer-direct', 'official',
+    # SOURCE_RANK 3: an authenticated board view.
+    'authenticated-board', 'authenticated-linkedin', 'authenticated-indeed',
+    # SOURCE_RANK 2: a primary board the employer posted to directly.
+    'uk-board', 'major-board', 'linkedin',
+    # SOURCE_RANK 1: a copy that usually has to be resolved again anyway.
+    'aggregator', 'sponsor-board', 'agency-board',
+    # Not registry-assigned: weakest, and the explicit unknown floor.
+    'public-web', 'unknown')
 
 RESOLUTION_OUTCOMES = ('resolved_official', 'resolved_ats', 'unresolved', 'agency',
                        'employer_unknown')
@@ -125,6 +145,18 @@ _SPON_NEGATIVE = re.compile(
     r'|\b(?:cannot|can\s?not|can\'t|unable\s+to|won\'?t|will\s+not|do\s+not|does\s+not'
     r'|not\s+able\s+to)\s+(?:currently\s+)?(?:offer|provide|support|consider|sponsor)\b'
     r'|\bwithout\s+(?:the\s+need\s+for\s+)?sponsorship\b'
+    # "eligible to work in the UK WITHOUT RESTRICTION, time limit, or the need for
+    # current or future sponsorship" - a real advert (Quell, 2026-09-04) that the
+    # bare `without ... sponsorship` form missed, because five words sit between
+    # them. The gate FOUND the sentence and still labelled it `unknown`, which is
+    # the worst outcome available: an ineligible role scored rather than excluded.
+    # The bridge is bounded and the sentence already had to contain a sponsorship
+    # term to be a candidate at all.
+    r'|\bwithout\s+[^.]{0,80}?\bneed\s+for\s+(?:current\s+(?:or|and)\s+future\s+)?'
+    r'(?:visa\s+|uk\s+|work\s+|skilled[\s-]?worker\s+)*sponsorship\b'
+    r'|\bwithout\s+restriction\b'
+    r'|\bno\s+(?:current\s+(?:or|and)\s+future\s+)?(?:need|requirement)\s+for\s+'
+    r'(?:visa\s+)?sponsorship\b'
     r'|\bmust\s+(?:already\s+)?(?:have|hold)\s+(?:the\s+)?(?:full\s+|unrestricted\s+)?'
     r'right\s+to\s+work\b'
     r'|\buk\s+applicants\s+only\b'
@@ -1508,6 +1540,178 @@ def body_signal_gate(text, title='', strategy=None, extra_signals=(), hard_block
     }
 
 
+# ---------------------------------------------------------------------------
+# READ ORDER. Which surviving candidate is worth a job-description fetch first.
+#
+# This is NOT a match score and must never be stored as one. `rank_score` is
+# computed by tools/match_evaluation.py from a read advert; this decides which
+# adverts get READ at all when more candidates survive the cheap gates than the
+# run's `global_deep_jd_ceiling` can open.
+#
+# It exists because widening discovery broke the old assumption. A daily plan now
+# reaches roughly 3,000 canonical candidates against a deep budget of 70, so the
+# ordering at that neck decides what the human ever sees, and there was no rule
+# for it: `deferred` is defined as work "the deep budget or prioritisation
+# stopped short of", and no prioritisation existed. Finding ten times more and
+# reading the same seventy at random is not an improvement.
+#
+# Three properties are deliberate:
+#   ORDERS, NEVER ELIMINATES. A low priority is read later, not dropped. Anything
+#   unread stays `deferred`, which the counters define as lost depth rather than
+#   rejection, so a later run can still reach it.
+#   UNKNOWN IS NEVER ZERO. An unstated posting date, and an employer with no
+#   sponsorship evidence yet, both score low but positive. Scoring silence as
+#   zero would let a well-documented mediocre advert outrank an undocumented good
+#   one, the same error the evaluator's uncertainty ceilings exist to avoid.
+#   DERIVED, NOT INVENTED. Every term comes from the privacy-safe search profile,
+#   itself derived from candidate/profile.md, so this ordering moves when the
+#   candidate's calibration moves and never encodes a separate opinion.
+READ_PRIORITY_MAX = 100
+READ_PRIORITY_COMPONENTS = (('stack', 40), ('level', 25), ('sponsor', 20),
+                            ('authority', 10), ('recency', 5))
+
+
+def _title_hits(text, terms):
+    """How many of `terms` the title satisfies, by CONJUNCTIVE TOKEN CONTAINMENT.
+
+    A term matches when every one of its significant tokens appears in the title,
+    in any order and not necessarily adjacent. Substring matching was tried first
+    and is wrong here: `Python Django Developer` does not contain the substring
+    `Python Developer`, so a title naming the candidate\'s exact stack scored as
+    though it named no target role at all. Token containment is the same rule
+    `coverage_policy.subsumption` already applies to query text, so the two parts
+    of the workspace agree on when one phrase covers another.
+    """
+    tokens = set(re.findall(r'[a-z0-9+#.]+', text))
+    hits = 0
+    for term in terms:
+        want = set(re.findall(r'[a-z0-9+#.]+', str(term or '').lower()))
+        if want and want <= tokens:
+            hits += 1
+    return hits
+
+
+def read_priority(candidate, profile=None, sponsor_evidence=''):
+    """Deterministic read ORDER for one candidate that survived the cheap gates.
+
+    Returns `{'read_priority': int, 'components': {...}, 'reason': str}`.
+    Higher is read sooner. Never a match score, never a filter, and never
+    persisted into a job record as `rank_score` or any other match field.
+
+    `sponsor_evidence` is what the employer store already knows, one of
+    'confirmed', 'partial' or ''. It is passed in rather than looked up so this
+    stays a pure function of its inputs.
+    """
+    if profile is None:
+        from search_profile import load_search_profile
+        profile = load_search_profile()
+    text = collapse(candidate.get('title')).lower()
+
+    # STACK. The candidate's own language first, then the frameworks and backend
+    # surface they actually work on. A title naming Python outranks one that
+    # merely names a role this candidate could plausibly do.
+    stack = 0
+    if _title_hits(text, profile.get('primary_languages') or ()):
+        stack += 20
+    if _title_hits(text, profile.get('frameworks') or ()):
+        stack += 10
+    if _title_hits(text, list(profile.get('backend_capabilities') or ())
+                   + list(profile.get('integration_terms') or ())):
+        stack += 6
+    if _title_hits(text, profile.get('database_terms') or ()):
+        stack += 4
+    if not stack:
+        # No technology named at all. Fall back to how well the ROLE matches,
+        # which is weaker evidence of the same thing and is scored as such.
+        if _title_hits(text, profile.get('target_titles') or ()):
+            stack = 12
+        elif _title_hits(text, profile.get('adjacent_titles') or ()):
+            stack = 8
+    stack = min(stack, 40)
+
+    # LEVEL. An advert naming this candidate's level is worth opening before one
+    # that says nothing; saying nothing is not penalised to zero, because most
+    # adverts simply do not state a level in the title.
+    if _title_hits(text, profile.get('early_career_titles') or ()):
+        level = 25
+    elif _title_hits(text, profile.get('target_titles') or ()):
+        level = 18
+    elif _title_hits(text, profile.get('adjacent_titles') or ()):
+        level = 14
+    else:
+        level = 10
+
+    # SPONSOR. This candidate needs Skilled Worker sponsorship eventually, so an
+    # employer already carrying licence evidence is worth reading first. Silence
+    # is not refusal and keeps a positive floor.
+    # The unknown floor is deliberately half, not near-zero. An employer with no
+    # evidence yet is usually one nobody has CHECKED, and checking mostly happens
+    # after a read. Too low a floor makes that self-fulfilling: never read, so
+    # never checked, so never read. Ten keeps confirmed evidence a real advantage
+    # while leaving a strong stack match able to outrank it.
+    sponsor = {'confirmed': 20, 'partial': 15}.get(
+        str(sponsor_evidence).strip().lower(), 10)
+
+    # AUTHORITY. An employer or ATS posting yields a canonical description; an
+    # aggregator often yields a copy that has to be resolved again anyway.
+    rank = _authority_rank(candidate)
+    span = max(1, len(SOURCE_TYPE_AUTHORITY) - 1)
+    authority = max(0, round(10 * (span - min(rank, span)) / span))
+
+    # RECENCY. Fresher adverts are likelier to still be open. An unknown date is
+    # a known unknown and keeps a floor rather than sorting last.
+    age = candidate.get('posted_age_days')
+    try:
+        age = int(age)
+    except (TypeError, ValueError):
+        age = None
+    if age is None:
+        recency = 2
+    elif age <= 1:
+        recency = 5
+    elif age <= 3:
+        recency = 4
+    elif age <= 7:
+        recency = 3
+    elif age <= 14:
+        recency = 2
+    else:
+        recency = 1
+
+    components = {'stack': stack, 'level': level, 'sponsor': sponsor,
+                  'authority': authority, 'recency': recency}
+    reason = (f"stack {stack}/40, level {level}/25, sponsor {sponsor}/20, "
+              f"authority {authority}/10, recency {recency}/5")
+    return {'read_priority': sum(components.values()), 'components': components,
+            'reason': reason}
+
+
+def read_order(candidates, profile=None, sponsor_evidence=None):
+    """`candidates` ordered for deep reading, highest priority first.
+
+    Ties break on the candidate's own url, then its input position, so two runs
+    over the same pool produce the same order. NOTHING IS DROPPED: the caller
+    reads down this list until its deep budget is spent and records the
+    remainder as `deferred`.
+    """
+    sponsor_evidence = sponsor_evidence or {}
+    if profile is None:
+        from search_profile import load_search_profile
+        profile = load_search_profile()
+    scored = []
+    for index, cand in enumerate(candidates):
+        key = str(cand.get('employer_key') or cand.get('company') or '').strip().lower()
+        row = read_priority(cand, profile=profile,
+                            sponsor_evidence=sponsor_evidence.get(key, ''))
+        scored.append((-row['read_priority'], str(cand.get('url') or ''), index,
+                       cand, row))
+    scored.sort(key=lambda r: (r[0], r[1], r[2]))
+    return [dict(cand, read_priority=row['read_priority'],
+                 read_priority_components=row['components'],
+                 read_priority_reason=row['reason'])
+            for _, _, _, cand, row in scored]
+
+
 def _authority_rank(candidate):
     source_type = str(candidate.get('source_type') or 'unknown').strip().lower()
     try:
@@ -2191,6 +2395,37 @@ def cmd_sponsorship_signal(args):
     print(json.dumps(sponsorship_signal(text), indent=2, ensure_ascii=False))
 
 
+def cmd_read_order(args):
+    """Order surviving candidates for deep reading. Reads JSON from a file or stdin.
+
+    Input is a list of candidates, or an object with `candidates` and optionally
+    `sponsor_evidence` mapping a lowercased employer key to 'confirmed',
+    'partial' or ''. Output preserves EVERY input candidate: this decides order,
+    never membership.
+    """
+    payload = read_json_input(args)
+    if isinstance(payload, list):
+        candidates, evidence = payload, {}
+    else:
+        candidates = payload.get('candidates') or []
+        evidence = payload.get('sponsor_evidence') or {}
+    ordered = read_order(candidates, sponsor_evidence=evidence)
+    limit = int(getattr(args, 'deep_budget', 0) or 0)
+    read_now = ordered[:limit] if limit else ordered
+    deferred = ordered[limit:] if limit else []
+    print(json.dumps({
+        'schema_version': 1,
+        'candidates_in': len(candidates),
+        'ordered': len(ordered),
+        'deep_budget': limit,
+        'read_now': read_now,
+        'deferred': [c.get('url') or c.get('title') for c in deferred],
+        'note': ('Order only. Every input candidate appears exactly once across '
+                 'read_now and deferred, and `deferred` is lost DEPTH rather than '
+                 'rejection: those candidates stay eligible for a later run.'),
+    }, indent=2, ensure_ascii=False))
+
+
 def cmd_title_blockers(args):
     config = None
     if args.config:
@@ -2216,7 +2451,24 @@ def cmd_validate_query_task(args):
     raise SystemExit(0 if result['valid'] else 1)
 
 
+def _force_utf8_stdout():
+    """Vacancy text is not cp1252, and a Windows console is.
+
+    A real advert title carrying an en-dash or a pound sign made this tool exit
+    with UnicodeEncodeError instead of printing, which took `/rank` down on
+    Windows the moment a normal role title contained one. The DATA was fine; only
+    the console encoding was wrong, so fix the stream rather than the text.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if (getattr(stream, 'encoding', '') or '').lower().replace('-', '') != 'utf8':
+                stream.reconfigure(encoding='utf-8', errors='replace')
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def main():
+    _force_utf8_stdout()
     p = argparse.ArgumentParser(description='Structured discovery candidate helper')
     sub = p.add_subparsers(dest='cmd', required=True)
 
@@ -2259,6 +2511,13 @@ def main():
                              'Negation always beats a positive form.')
     ss.add_argument('--file', default='')
     ss.set_defaults(func=cmd_sponsorship_signal)
+
+    ro = sub.add_parser('read-order',
+                        help='Order surviving candidates for deep reading.')
+    ro.add_argument('--file', default='')
+    ro.add_argument('--deep-budget', dest='deep_budget', type=int, default=0,
+                    help='Split the order into read_now and deferred at this size.')
+    ro.set_defaults(func=cmd_read_order)
 
     tb = sub.add_parser('title-blockers',
                         help='Deterministic blockers decidable from a title alone.')

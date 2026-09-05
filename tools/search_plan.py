@@ -59,7 +59,8 @@ from search_rotation import (  # noqa: E402
 )
 import coverage_ledger  # noqa: E402
 from sources import (  # noqa: E402
-    COMPLETE_OUTCOMES, FAILED_OUTCOMES, is_known_source, load_registry, source_family,
+    COMPLETE_OUTCOMES, FAILED_OUTCOMES, get_source, is_known_source, load_registry,
+    source_family,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -254,6 +255,32 @@ def _unfunded_mandatory(family_id, required_buckets, bucketed):
     """Are there mandatory buckets in this search family nobody has funded yet?"""
     return any(b.split('::')[1] == family_id and b not in bucketed
                for b in (required_buckets or ()))
+
+
+def _source_candidate_budget(family_budget, source_id, registry):
+    """The deeper of the family default and what this SOURCE can actually supply.
+
+    Two numbers described the same thing and disagreed. `candidate_budget` is a
+    per-FAMILY default - 40 for direct-title - written when every board returned a
+    screen or two. `inspect_cards_per_query` in the source registry is the
+    per-SOURCE depth, and for LinkedIn it is 400, set from a 2026-09-03
+    measurement: one guest query on a 24-hour window paged to exhaustion at 332
+    unique dated vacancies. A plan carrying 40 next to a registry saying 400 asks
+    the run to guess, and the smaller number wins by default, which is exactly the
+    behaviour that left LinkedIn contributing ten cards.
+
+    The deeper number wins because these are a floor and a capability, not two
+    competing limits: the family default says how much is normally worth taking,
+    the source says how much is there. Taking the max never reduces any existing
+    budget, so a source that declares nothing, or declares less, is unaffected.
+    """
+    declared = (get_source(source_id, registry) or {}).get(
+        'inspect_cards_per_query')
+    try:
+        declared = int(declared)
+    except (TypeError, ValueError):
+        return int(family_budget)
+    return max(int(family_budget), declared)
 
 
 def plan_family(family_id, profile, mode='deep', sources=(), window='24h',
@@ -515,7 +542,8 @@ def plan_family(family_id, profile, mode='deep', sources=(), window='24h',
             'subsumption_rule': (
                 coverage_ledger.coverage_policy(strategy)['subsumption']['rule']
                 if _subsumed_by else ''),
-            'candidate_budget': candidate_budget,
+            'candidate_budget': _source_candidate_budget(
+                candidate_budget, source_id, registry),
             'requires_body_validation': bool(family.get('requires_body_validation')),
             'dedup_key': key,
             'rotation_offset': offset,
@@ -2000,7 +2028,24 @@ def cmd_dedup_key(args):
                      ensure_ascii=False))
 
 
+def _force_utf8_stdout():
+    """Vacancy text is not cp1252, and a Windows console is.
+
+    A real advert title carrying an en-dash or a pound sign made this tool exit
+    with UnicodeEncodeError instead of printing, which took `/rank` down on
+    Windows the moment a normal role title contained one. The DATA was fine; only
+    the console encoding was wrong, so fix the stream rather than the text.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if (getattr(stream, 'encoding', '') or '').lower().replace('-', '') != 'utf8':
+                stream.reconfigure(encoding='utf-8', errors='replace')
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def main():
+    _force_utf8_stdout()
     p = argparse.ArgumentParser(description='Bounded query planning and stopping rules')
     sub = p.add_subparsers(dest='cmd', required=True)
 

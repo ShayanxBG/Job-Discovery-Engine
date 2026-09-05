@@ -74,7 +74,7 @@ That output is authoritative for component maxima, bands, uncertainty ceilings, 
 
 12. Never deduct points for relocation within the UK. Preferred cities are tie-breakers only.
 
-13. Verify sponsorship and salary more deeply for Direct Matches that could realistically land at 70+, or where uncertainty changes the order.
+13. Verify sponsorship and salary more deeply for Direct Matches that could realistically land at 58+, or where uncertainty changes the order.
 
 14. For Agency Leads give a provisional score based on technical fit, seniority realism, salary/contract and available client evidence. Do not pretend the sponsorship component is known.
 
@@ -178,13 +178,21 @@ This never becomes a hard blocker. `salary.hard_floor` is deliberately `null`, s
 
 ## Bands, agency scores and the pilot review rule
 
-Bands come from `config/matching_policy.json`: 90-100 Exceptional, 80-89 Strong, 70-79 Viable, 65-69 Borderline Review, below 65 Below Threshold. They are a PILOT calibration and predict nothing about interviews.
+Bands come from `config/matching_policy.json`: 75-100 Exceptional, 66-74 Strong, 58-65 Viable, 54-57 Borderline Review, below 54 Below Threshold. They were RECALIBRATED on 2026-09-03 against the ACHIEVABLE ceiling of 83 rather than the theoretical 100, because the uncertainty ceilings mean a real advert can almost never reach 100. They still predict nothing about interviews.
 
-Every eligible Direct role from 65 to 79 stays VISIBLE for human review during the pilot. Do not hide a 66 because it is under 70. 80 remains the default full-tailoring threshold. A score alone never creates a hard blocker and never creates a suppression record.
+Every eligible Direct role from 54 to 65 stays VISIBLE for human review. Do not hide a 55 because it is under 58. 66 is the default full-tailoring threshold. A score alone never creates a hard blocker and never creates a suppression record.
 
 `Verify First` is a recommended ACTION on a scored role, not a category. A Direct Match keeps `lead_type: direct` and its band while its verdict says to verify something. Only a decision-critical external gate on a direct-employer role makes it `lead_type: verification`.
 
 An agency advert whose employing client is unknown has no employer whose sponsorship can be checked, so the 25 sponsorship points are EXCLUDED rather than scored zero and the total is out of 75, displayed as `Provisional 59/75 excl. sponsorship`. Never render an agency score against 100, and never give it a Direct band: the bands are defined for the 100-point model. Set `lead_type: agency` and the helper enforces the rest.
+
+## The final report shows every row, and every row carries its URL
+
+Every role the run ranked appears in the report, and each one carries its source URL. A role a reader cannot open is not decision support, so a name and a score without a link is an incomplete row rather than a shorter one.
+
+Every Agency Lead is a ROW in the Agency Leads section, never a count and never a sentence standing in for the group. Twenty-two agency leads are twenty-two rows. Collapsing them into `22 agency leads found` discards the scoring that was already done and hides the recruiter, the role and the link, which are the only fields that decide whether one is worth a reply.
+
+Never replace a section with prose, and never omit a section because it ran long. A section with no rows says so in one line; a section with rows prints them.
 
 ## Reporting a partial ranking run
 

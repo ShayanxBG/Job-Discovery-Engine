@@ -837,6 +837,29 @@ def required_bucket_index():
     return _REQUIRED_BUCKET_INDEX
 
 
+_DECLARED_BUCKET_INDEX = None
+
+
+def declared_bucket_index():
+    """{(inventory_family, search_family): {term_cluster, ...}} for EVERY bucket.
+
+    Whether a bucket is MANDATORY and whether it EXISTS are different questions.
+    The required index answers the first; this answers the second. Validating a
+    supplied cluster against the required index alone made a family's own
+    exploratory clusters unrecordable, because mandatory-ness is judged on the
+    (family, search_family) pair while the cluster check is per bucket.
+    """
+    global _DECLARED_BUCKET_INDEX
+    if _DECLARED_BUCKET_INDEX is None:
+        from coverage_ledger import bucket_universe
+        index = {}
+        for row in bucket_universe().values():
+            index.setdefault((row['inventory_family'], row['search_family']),
+                             set()).add(row['term_cluster'])
+        _DECLARED_BUCKET_INDEX = index
+    return _DECLARED_BUCKET_INDEX
+
+
 def validate_coverage_bucket(bucket, query_id, source_id, search_family,
                              inventory_family, window):
     """Return the bucket to persist, or raise. Never silently drops one.
@@ -897,13 +920,17 @@ def validate_coverage_bucket(bucket, query_id, source_id, search_family,
             f'{search_family!r}.',
             'The bucket must describe the query the id names.',
         )
-    if mandatory and cluster not in index[(fam, search_family)]:
+    # A supplied cluster is checked against every DECLARED bucket, not only the
+    # required ones. An exploratory cluster is a real bucket that owes no
+    # interval; refusing it made a third of the universe unrecordable. A cluster
+    # nobody declares is still refused, so nothing invented reaches the ledger.
+    declared = declared_bucket_index().get((fam, search_family), set())
+    if declared and cluster not in declared:
         raise run_error(
-            f'Unknown term cluster {cluster!r} for mandatory bucket '
-            f'{fam}::{search_family}.',
-            f'Declared clusters: {", ".join(sorted(index[(fam, search_family)]))}',
-            'A cluster the required universe does not declare cannot discharge an '
-            'obligation it does not name.',
+            f'Unknown term cluster {cluster!r} for bucket {fam}::{search_family}.',
+            f'Declared clusters: {", ".join(sorted(declared))}',
+            'A cluster no bucket declares cannot be credited, because the ledger '
+            'holds no checkpoint to advance.',
         )
     if not (window or '').strip():
         raise run_error(
@@ -1040,6 +1067,26 @@ def cmd_finish(args):
         if value is not None:
             counts[field] = max(0, int(value))
 
+    # `deferred` is DERIVED on exactly the same terms, and was the SAME HOLE left
+    # open. The pre-deep partition identity is only checked when every one of its
+    # members is present, so omitting this single counter silently switched the
+    # check off. Production runs scrape-20260901T090954515780 and
+    # scrape-20260902T150702668082 both did that and closed cleanly with 129 and
+    # 184 canonical candidates unaccounted for. `deferred` is definitionally the
+    # remainder - what survived the cheap gates and was not deep checked - so it
+    # can be completed rather than demanded. Clamping at zero does NOT hide an
+    # over-count: if the named outcomes already exceed `raw`, deferred becomes 0,
+    # the partition still oversums, and reconcile_counts reports it.
+    _named = [f for f in COUNT_PARTITION if f != 'deferred']
+    _named_values = [counts.get(f) for f in _named]
+    if (counts.get('deferred') is None and counts.get('raw') is not None
+            and all(v is not None for v in _named_values)):
+        counts['deferred'] = max(
+            0, int(counts['raw']) - sum(int(v) for v in _named_values))
+        derived_deferred = True
+    else:
+        derived_deferred = False
+
     # `candidates` is DERIVED, not optional. It is definitionally the sum of the
     # lead types, so leaving it out cannot be a way to opt out of reconciliation:
     # without it both lead-type identities go unchecked, and a run claiming nine
@@ -1120,6 +1167,7 @@ def cmd_finish(args):
     save_run(data)
     print(json.dumps({'run_id': data['run_id'], 'finished_at': data['finished_at'],
                       'candidates_derived': derived_candidates,
+                      'deferred_derived': derived_deferred,
                       'counts': data['counts'],
                       'summary': summarise(data)}, indent=2, ensure_ascii=False))
 
@@ -1281,7 +1329,24 @@ def cmd_show(args):
         print(render(data))
 
 
+def _force_utf8_stdout():
+    """Vacancy text is not cp1252, and a Windows console is.
+
+    A real advert title carrying an en-dash or a pound sign made this tool exit
+    with UnicodeEncodeError instead of printing, which took `/rank` down on
+    Windows the moment a normal role title contained one. The DATA was fine; only
+    the console encoding was wrong, so fix the stream rather than the text.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if (getattr(stream, 'encoding', '') or '').lower().replace('-', '') != 'utf8':
+                stream.reconfigure(encoding='utf-8', errors='replace')
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def main():
+    _force_utf8_stdout()
     p = argparse.ArgumentParser(description='Private per-run discovery coverage log')
     sub = p.add_subparsers(dest='cmd', required=True)
 

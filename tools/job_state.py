@@ -37,6 +37,9 @@ SOURCE_CONFIDENCES = ('low', 'medium', 'high')
 # Statuses legitimately used by this project: `new` and `updated` are written by
 # discovery, `ranked` by /rank, and `dismissed`/`expired` by triage.
 STATUSES = ('new', 'updated', 'ranked', 'dismissed', 'expired')
+# The two statuses that REMOVE a vacancy from what the human is shown. Both owe
+# a recorded reason; the other three describe a record still in play.
+TERMINAL_STATUSES = ('dismissed', 'expired')
 
 # Run-window eligibility. This is deliberately SEPARATE from `status` and from
 # `fit_band`, because it answers a different question: not "is this vacancy any
@@ -1735,7 +1738,29 @@ def cmd_mark(args):
     facts_source = facts_source_override(args.facts_source_type, args.facts_source_url)
 
     if status:
+        _previous = item.get('status', '')
+        _reason = (getattr(args, 'status_reason', '') or '').strip()
+        # A record leaving the user's view owes an explanation. Thirty-three
+        # records were stored `expired` with no reason and no timestamp, so
+        # nothing said whether the ATS reported it closed, a board 404'd, or a
+        # human dropped it - and the cache's own open_status never reached the
+        # state record. A reclassification with no stated reason is
+        # indistinguishable from one somebody simply wanted.
+        if status in TERMINAL_STATUSES and status != _previous and not _reason:
+            raise state_error(
+                f'Refusing to mark a record {status} without a reason.',
+                f'{status} removes this vacancy from the shortlist, so the record '
+                f'has to say what established it: the ATS or platform API '
+                f'reporting the posting closed, the page returning 404 or 410, a '
+                f'stated closing date now passed, or an explicit human decision.',
+                'Pass --status-reason "<what established it>".')
         item['status'] = status
+        if status != _previous:
+            item['status_changed_at'] = datetime.now().astimezone().isoformat(
+                timespec='seconds')
+            item['previous_status'] = _previous
+        if _reason:
+            item['status_reason'] = _reason
     if lead_type:
         item['lead_type'] = lead_type
     if args.quick_fit:
@@ -1833,6 +1858,7 @@ def cmd_mark(args):
         else:
             item['rank_score'] = evaluation.get('total_score')
         item['rank_date'] = item.get('rank_date') or date.today().isoformat()
+    _ensure_agency_denominator(item)
     save_state(data)
     stored_eval = item.get('evaluation') or {}
     print(json.dumps({
@@ -1847,6 +1873,39 @@ def cmd_mark(args):
         'eligible': stored_eval.get('eligible'),
         'hard_blockers': [r.get('id') for r in stored_eval.get('hard_blockers', [])],
     }, ensure_ascii=False))
+
+
+def _ensure_agency_denominator(item):
+    """An agency verdict a human reads must carry the 75 it is scored against.
+
+    `rank_verdict` is the string /rank and /shortlist actually display. The
+    evaluation object beside it is validated hard - an agency model must declare
+    max_score 75 - but the prose was stored verbatim, so a run could write
+    `Agency Lead, Strong` next to `rank_score: 53` and leave a reader to assume
+    53/100. Seven records written on 2026-09-02 did exactly that. The policy note
+    is explicit that 66/75 and 66/100 are different claims and the second one is
+    false, so the denominator is APPENDED here rather than trusted to prose.
+
+    Appended, not rejected: unlike a score component, a missing denominator is a
+    rendering omission whose correct value is already known and already
+    validated. Refusing the write would discard a sound evaluation over
+    formatting, and invite a retry that guesses at the number instead.
+    """
+    if item.get('lead_type') != 'agency':
+        return
+    verdict = item.get('rank_verdict') or ''
+    if not verdict:
+        return
+    evaluation = item.get('evaluation') or {}
+    maximum = evaluation.get('max_score')
+    total = evaluation.get('total_score', item.get('rank_score'))
+    if maximum is None or total is None:
+        return
+    denominator = f'/{maximum}'
+    if denominator in verdict:
+        return
+    item['rank_verdict'] = (f'{verdict} (provisional {total}{denominator} '
+                            f'excl. sponsorship)')
 
 
 def cmd_reset(args):
@@ -2121,7 +2180,24 @@ def cmd_doctor(args):
     raise SystemExit(0 if healthy_after else 1)
 
 
+def _force_utf8_stdout():
+    """Vacancy text is not cp1252, and a Windows console is.
+
+    A real advert title carrying an en-dash or a pound sign made this tool exit
+    with UnicodeEncodeError instead of printing, which took `/rank` down on
+    Windows the moment a normal role title contained one. The DATA was fine; only
+    the console encoding was wrong, so fix the stream rather than the text.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if (getattr(stream, 'encoding', '') or '').lower().replace('-', '') != 'utf8':
+                stream.reconfigure(encoding='utf-8', errors='replace')
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def main():
+    _force_utf8_stdout()
     p = argparse.ArgumentParser(description='Deduplicated job discovery state helper')
     sub = p.add_subparsers(dest='cmd', required=True)
 
@@ -2185,6 +2261,9 @@ def main():
     m.add_argument('--sponsorship', default='')
     m.add_argument('--sponsorship-label', default='')
     m.add_argument('--rank-score', type=int)
+    m.add_argument('--status-reason', dest='status_reason', default='',
+                   help='Why the status changed. REQUIRED when moving a record to '
+                        'expired or dismissed, because those remove it from view.')
     m.add_argument('--rank-verdict', default='')
     m.add_argument('--rank-run-id', default='')
     m.add_argument('--facts', default='', help='Structured facts as a JSON object.')

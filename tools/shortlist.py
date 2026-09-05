@@ -146,6 +146,16 @@ def sanitised_item(key, item):
         # components. Absent on rankings recorded before the field existed, and never
         # backfilled, because an absent evaluation is a knowable unknown.
         'evaluation',
+        # Consolidation deliberately never MERGES two records on a resemblance:
+        # one employer runs several different vacancies under one title in one
+        # city, so merging needs published identifier evidence. What it does
+        # instead is HINT, and a hint that stops at the state file helps nobody.
+        # Twenty-two of the two hundred stored records carry this, including one
+        # Client Server vacancy sighted on CWJobs, LinkedIn and Indeed; without
+        # it a shortlist can show the same role three times with no signal that
+        # they are linked. Carrying the hint keeps the flag-do-not-merge rule
+        # useful to the human it was written for.
+        'possible_duplicate_keys',
     )
     out = {'state_key': key}
     for field in fields:
@@ -173,15 +183,65 @@ def category(item):
         score = int(item.get('rank_score'))
     except (TypeError, ValueError):
         return 'other'
-    if score >= 90:
-        return 'exceptional'
-    if score >= 80:
-        return 'strong'
-    if score >= 70:
-        return 'viable'
-    if score >= 65:
-        return 'borderline'
+    for band_id, floor in _policy_band_floors():
+        if score >= floor:
+            return band_id
     return 'below'
+
+
+# The band thresholds have ONE home: config/matching_policy.json. They were
+# hardcoded here as 90/80/70/65 and were silently left behind when the policy was
+# recalibrated to 75/66/58/54 on 2026-09-03. The evaluations then used the new
+# bands while the shortlist the human actually reads used the old ones, so every
+# role was shown roughly a band and a half worse than it scored: a 74 that policy
+# calls a Strong Match was rendered 'viable', and 53 roles inside the review range
+# were rendered 'below'. Read the policy instead of restating it.
+_BAND_ID_ALIASES = {'borderline_review': 'borderline', 'below_threshold': 'below'}
+
+
+def _band_heading(band_id, label):
+    """Heading text with the band's CURRENT range, read from policy.
+
+    These read "(90+)" and "(80-89)" long after the policy moved to 75/66/58/54,
+    so the shortlist told the reader a score range that no longer existed.
+    """
+    for row in _policy_band_rows():
+        if _BAND_ID_ALIASES.get(row.get('id'), row.get('id')) != band_id:
+            continue
+        lo, hi = row.get('min_score'), row.get('max_score')
+        if lo is None:
+            break
+        return f'{label} ({lo}+)' if hi is None or hi >= 100 else f'{label} ({lo}-{hi})'
+    return label
+
+
+def _policy_band_rows():
+    path = ROOT / 'config/matching_policy.json'
+    try:
+        rows = json.loads(path.read_text(encoding='utf-8'))['direct_model']['bands']
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise SystemExit(
+            f'Band thresholds could not be read: {path}\n'
+            f'  {type(exc).__name__}: {exc}\n'
+            '  The shortlist reads its bands from the matching policy and will not\n'
+            '  guess them: banding every role from a default would silently mis-rank\n'
+            '  the whole shortlist. Run: python tools/match_evaluation.py validate-policy'
+        ) from None
+    if not rows:
+        raise SystemExit(f'Band thresholds are empty in {path}')
+    return rows
+
+
+def _policy_band_floors():
+    """(band_id, min_score) from the live policy, strongest first."""
+    rows = _policy_band_rows()
+    out = []
+    for row in rows:
+        bid = _BAND_ID_ALIASES.get(row.get('id'), row.get('id'))
+        if bid in BANDS and isinstance(row.get('min_score'), int):
+            out.append((bid, row['min_score']))
+    out.sort(key=lambda r: -r[1])
+    return tuple(out)
 
 
 def counts_for(items):
@@ -369,6 +429,13 @@ def fmt_item(item, provisional=False):
     verdict = item.get('rank_verdict') or item.get('filter_reason') or ''
     url = item.get('url') or ''
     line = f'- {score} | {company} | {title} | {location} | sponsorship: {sponsor}'
+    # Consolidation hints rather than merges, because merging needs published
+    # identifier evidence. Say so on the line: the same vacancy legitimately
+    # appears on three boards, and a reader comparing rows deserves to know two
+    # of them may be one job rather than two opportunities.
+    _dupes = item.get('possible_duplicate_keys') or []
+    if _dupes:
+        line += f' | possible duplicate of {len(_dupes)} other sighting(s)'
     if verdict:
         line += f' | {verdict}'
     if url:
@@ -401,10 +468,10 @@ def render_snapshot(snapshot, day_run_count=1):
         lines.append(f'Runs recorded for this day: {day_run_count} (showing latest)')
 
     sections = [
-        ('Exceptional Matches (90+)', 'exceptional', False),
-        ('Strong Matches (80-89)', 'strong', False),
-        ('Viable Matches (70-79)', 'viable', False),
-        ('Borderline Review (65-69)', 'borderline', False),
+        (_band_heading('exceptional', 'Exceptional Matches'), 'exceptional', False),
+        (_band_heading('strong', 'Strong Matches'), 'strong', False),
+        (_band_heading('viable', 'Viable Matches'), 'viable', False),
+        (_band_heading('borderline', 'Borderline Review'), 'borderline', False),
         ('Verification Leads', 'verification', False),
         ('Agency Leads', 'agency', True),
     ]
@@ -474,7 +541,24 @@ def cmd_show(args):
                     + damage_notice(damaged)))
 
 
+def _force_utf8_stdout():
+    """Vacancy text is not cp1252, and a Windows console is.
+
+    A real advert title carrying an en-dash or a pound sign made this tool exit
+    with UnicodeEncodeError instead of printing, which took `/rank` down on
+    Windows the moment a normal role title contained one. The DATA was fine; only
+    the console encoding was wrong, so fix the stream rather than the text.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if (getattr(stream, 'encoding', '') or '').lower().replace('-', '') != 'utf8':
+                stream.reconfigure(encoding='utf-8', errors='replace')
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def main():
+    _force_utf8_stdout()
     p = argparse.ArgumentParser(description='Immutable shortlist snapshots for ranked job-discovery runs')
     sub = p.add_subparsers(dest='cmd', required=True)
 

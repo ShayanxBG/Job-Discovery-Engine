@@ -57,11 +57,11 @@ Weights and bands live in `config/matching_policy.json`. What each component MEA
 - **Salary, contract and working-pattern feasibility.** Employment type, salary where stated, and working pattern. Location inside the UK never reduces this score.
 - **Company environment and domain fit.** Engineering environment and domain relevance. Domain is secondary to technical and seniority fit, and a preferred domain is a bonus rather than a requirement.
 
-Scores are decision-support values, not predictions of interview or offer probability. The bands are a PILOT calibration: every eligible Direct role from 65 to 79 stays visible for human review, a score alone never creates a hard blocker or a suppression record, and a role below 65 is deprioritised rather than deleted.
+Scores are decision-support values, not predictions of interview or offer probability. The bands were RECALIBRATED against 83, the ceiling a good real advert actually reaches, rather than against 100. 100 stays reachable in principle, because a fully `known` component is uncapped, but none of the 988 ranked adverts had all five components known and the best scored 79: every eligible Direct role from 54 to 65 stays visible for human review, a score alone never creates a hard blocker or a suppression record, and a role below 54 is deprioritised rather than deleted.
 
 ## Verify First is an action, not a category
 
-`Verify First` never changes the score band and never changes `lead_type`. A Direct Match scoring 84 or 73 whose verdict says `Verify first` is still a Direct Match in its own band; the action is surfaced in the verdict and the saved shortlist line.
+`Verify First` never changes the score band and never changes `lead_type`. A Direct Match scoring 78 or 61 whose verdict says `Verify first` is still a Direct Match in its own band; the action is surfaced in the verdict and the saved shortlist line.
 
 `Verification Lead` is a different concept: the `lead_type` for a direct-employer role that cannot honestly be scored yet because a decision-critical external gate is unresolved, such as a conflicting Skilled Worker route or an unconfirmed employing entity. It is not given a final score while the gate stands. Never reclassify a scored Direct Match into one merely because its verdict recommends verifying something.
 
